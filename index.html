@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ねこ島 単語コレクション</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff8fb6">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ねこ島">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Yusei+Magic&family=Kosugi+Maru&display=swap" rel="stylesheet">
+<style>
+:root{
+  --pink:#ffc9de;
+  --pink-deep:#ff8fb6;
+  --pink-text:#e8598f;
+  --mint:#bdf3df;
+  --mint-deep:#7fdcb8;
+  --mint-text:#2f9e78;
+  --cream:#fffaf3;
+  --brown:#7a5c50;
+  --brown-soft:#a98b7d;
+  --sun:#ffe08a;
+  --sky1:#eafbf6;
+  --sky2:#fff3f8;
+  --shadow: 0 6px 0 rgba(122,92,80,0.18);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;height:100%;}
+body{
+  font-family:'Kosugi Maru','Yusei Magic',sans-serif;
+  background:
+    radial-gradient(circle at 15% 10%, #fff 0%, transparent 40%),
+    radial-gradient(circle at 85% 90%, #fff 0%, transparent 35%),
+    linear-gradient(160deg, var(--sky1), var(--sky2) 60%, #d9f2ff);
+  min-height:100%;
+  color:var(--brown);
+  overflow-x:hidden;
+}
+.app{max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative;padding-bottom:86px;}
+
+/* ---------- header ---------- */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px 8px;
+}
+.logo{
+  font-family:'Yusei Magic',sans-serif;
+  font-size:20px;color:var(--pink-text);
+  display:flex;align-items:center;gap:6px;
+  text-shadow:1px 1px 0 #fff;
+}
+.coin-badge{
+  background:var(--cream);
+  border:3px solid var(--sun);
+  border-radius:999px;
+  padding:6px 14px 6px 8px;
+  display:flex;align-items:center;gap:6px;
+  font-size:15px;font-weight:bold;color:var(--brown);
+  box-shadow:var(--shadow);
+}
+.coin-badge .icon{font-size:18px;}
+
+/* ---------- nav tabs ---------- */
+.tabbar{
+  position:fixed;bottom:0;left:0;right:0;
+  max-width:520px;margin:0 auto;
+  display:flex;background:var(--cream);
+  border-top:3px solid var(--pink);
+  border-radius:22px 22px 0 0;
+  box-shadow:0 -4px 14px rgba(122,92,80,0.15);
+  z-index:50;
+}
+.tabbar button{
+  flex:1;border:none;background:none;padding:10px 4px 12px;
+  font-family:inherit;font-size:12px;color:var(--brown-soft);
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  cursor:pointer;
+}
+.tabbar button .ic{font-size:22px;}
+.tabbar button.active{color:var(--pink-text);font-weight:bold;}
+.tabbar button.active .ic{transform:translateY(-3px);filter:drop-shadow(0 2px 0 rgba(255,143,182,.4));}
+
+main{flex:1;padding:6px 16px 20px;}
+.instruction-banner{
+  background:#fff3d6;border:2px dashed var(--sun);border-radius:16px;
+  padding:10px 14px;font-size:12.5px;color:#8a5b00;font-weight:bold;
+  margin-bottom:12px;text-align:center;line-height:1.5;
+}
+section{display:none;}
+section.visible{display:block;animation:fadein .25s ease;}
+@keyframes fadein{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+.card{
+  background:var(--cream);
+  border-radius:24px;
+  padding:18px;
+  box-shadow:var(--shadow);
+  border:3px solid #fff;
+  margin-bottom:16px;
+}
+h2.section-title{
+  font-family:'Yusei Magic',sans-serif;
+  color:var(--pink-text);font-size:19px;margin:6px 4px 10px;
+  display:flex;align-items:center;gap:6px;
+}
+.btn{
+  font-family:inherit;
+  border:none;border-radius:999px;
+  padding:13px 22px;font-size:15px;font-weight:bold;
+  cursor:pointer;color:#fff;
+  background:linear-gradient(180deg, var(--pink-deep), #ff7aa8);
+  box-shadow:0 4px 0 #d15b86;
+  transition:transform .08s;
+}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #d15b86;}
+.btn.mint{background:linear-gradient(180deg, var(--mint-deep), #58c79c);box-shadow:0 4px 0 #3f9e78;}
+.btn.mint:active{box-shadow:0 1px 0 #3f9e78;}
+.btn.small{padding:8px 14px;font-size:13px;box-shadow:0 3px 0 #d15b86;}
+.btn:disabled{opacity:.45;cursor:default;}
+.btn-outline{
+  font-family:inherit;background:#fff;color:var(--pink-text);
+  border:2px solid var(--pink); border-radius:999px;padding:10px 18px;
+  font-weight:bold;cursor:pointer;font-size:13px;
+}
+
+/* ---------- home ---------- */
+.island{
+  position:relative;border-radius:26px;overflow:hidden;
+  background:linear-gradient(180deg,#bfe9ff 0%,#bfe9ff 45%, #ffe9a8 46%, #f4d183 100%);
+  height:190px;margin-bottom:16px;border:3px solid #fff;box-shadow:var(--shadow);
+}
+.island .cloud{position:absolute;background:#fff;border-radius:50px;opacity:.85;}
+.island .wave{position:absolute;bottom:52%;left:0;right:0;height:8px;background:repeating-linear-gradient(90deg,#fff 0 14px,transparent 14px 28px);opacity:.6;}
+.island .palm{position:absolute;bottom:44%;font-size:34px;}
+.island .cathouse{position:absolute;bottom:36%;left:50%;transform:translateX(-50%);font-size:52px;filter:drop-shadow(0 4px 0 rgba(0,0,0,.08));}
+.island .catwalk{position:absolute;bottom:40%;font-size:26px;animation:walk 9s linear infinite;}
+@keyframes walk{0%{left:-10%;}100%{left:105%;}}
+
+.stat-row{display:flex;gap:10px;margin-bottom:16px;}
+.stat-box{flex:1;background:#fff;border-radius:18px;padding:12px;text-align:center;box-shadow:var(--shadow);border:2px solid var(--mint);}
+.stat-box .num{font-size:20px;font-weight:bold;color:var(--mint-text);}
+.stat-box .lbl{font-size:11px;color:var(--brown-soft);}
+
+.progressbar{height:14px;border-radius:10px;background:#f1e6de;overflow:hidden;border:2px solid #fff;}
+.progressbar .fill{height:100%;background:linear-gradient(90deg,var(--pink),var(--pink-deep));border-radius:10px;transition:width .3s;}
+
+/* ---------- quiz ---------- */
+.combo-banner{
+  position:fixed;top:18%;left:50%;transform:translate(-50%,0) scale(.6);
+  background:linear-gradient(180deg,#ffe08a,#ffc857);
+  color:#8a5b00;font-family:'Yusei Magic',sans-serif;font-size:22px;
+  padding:14px 26px;border-radius:20px;box-shadow:0 6px 0 #cf9a2a;
+  z-index:200;opacity:0;pointer-events:none;
+}
+.combo-banner.show{animation:pop .9s ease forwards;}
+@keyframes pop{
+  0%{opacity:0;transform:translate(-50%,0) scale(.5);}
+  25%{opacity:1;transform:translate(-50%,0) scale(1.08);}
+  40%{transform:translate(-50%,0) scale(1);}
+  80%{opacity:1;}
+  100%{opacity:0;transform:translate(-50%,-16px) scale(1);}
+}
+.qmeta{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:13px;color:var(--brown-soft);}
+.qmeta .combo{color:var(--pink-text);font-weight:bold;}
+.sentence-box{
+  background:linear-gradient(180deg,#fff,#fff7fb);
+  border-radius:20px;padding:20px 16px;margin-bottom:14px;
+  font-size:18px;line-height:1.7;text-align:center;
+  border:2px dashed var(--pink);
+}
+.sentence-box .blank{
+  display:inline-block;min-width:70px;border-bottom:3px solid var(--pink-deep);
+  color:var(--pink-text);font-weight:bold;
+}
+.jp-meaning{text-align:center;color:var(--brown-soft);font-size:13px;margin-bottom:14px;}
+.choices{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:14px;}
+.choice-pill{
+  font-family:inherit;font-size:14px;font-weight:bold;color:var(--mint-text);
+  background:#fff;border:2px solid var(--mint-deep);border-radius:999px;
+  padding:8px 16px;
+}
+.choice-pill.picked{background:var(--mint-deep);color:#fff;}
+.speak-row{display:flex;justify-content:center;gap:10px;margin-bottom:16px;}
+.answer-row{display:flex;gap:8px;margin-bottom:8px;}
+.answer-row input{
+  flex:1;font-family:inherit;font-size:16px;padding:13px 16px;
+  border-radius:16px;border:3px solid var(--mint-deep);outline:none;background:#fff;
+}
+.answer-row input:focus{border-color:var(--pink-deep);}
+.feedback{
+  border-radius:16px;padding:12px 14px;margin-top:10px;font-size:14px;text-align:center;font-weight:bold;
+}
+.feedback.correct{background:#e2fbf0;color:var(--mint-text);border:2px solid var(--mint-deep);}
+.feedback.wrong{background:#fff0f4;color:var(--pink-text);border:2px solid var(--pink-deep);}
+.qcount-dots{display:flex;gap:5px;justify-content:center;margin-bottom:14px;}
+.qcount-dots span{width:9px;height:9px;border-radius:50%;background:#f1e0e8;}
+.qcount-dots span.done{background:var(--pink-deep);}
+.qcount-dots span.cur{background:var(--mint-deep);}
+
+/* ---------- garden ---------- */
+.shop-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px;}
+.shop-item{background:#fff;border:2px solid var(--mint);border-radius:18px;padding:10px;text-align:center;}
+.shop-item .emoji{font-size:30px;}
+.shop-item .name{font-size:12px;font-weight:bold;margin:4px 0 2px;}
+.shop-item .cost{font-size:12px;color:var(--pink-text);margin-bottom:6px;}
+.garden-plot{
+  position:relative;border-radius:22px;min-height:230px;
+  background:linear-gradient(180deg,#d9f5e6,#c3ecd6);
+  border:3px solid #fff;box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px;
+}
+.garden-plot .fitem{position:absolute;font-size:34px;filter:drop-shadow(0 3px 0 rgba(0,0,0,.08));}
+.garden-plot .gcat{position:absolute;font-size:28px;animation:wander 14s ease-in-out infinite;}
+@keyframes wander{
+  0%{transform:translate(0,0);}
+  25%{transform:translate(30px,-10px);}
+  50%{transform:translate(-15px,10px) scaleX(-1);}
+  75%{transform:translate(20px,15px) scaleX(-1);}
+  100%{transform:translate(0,0);}
+}
+.empty-msg{text-align:center;color:var(--brown-soft);font-size:13px;padding:30px 10px;}
+
+.garden-toolbar{display:flex;gap:8px;margin-bottom:10px;}
+.garden-plot.night{
+  background:linear-gradient(180deg,#2b2f5e,#3d3470);
+}
+.garden-plot .star{position:absolute;color:#fff;font-size:10px;opacity:.85;}
+.garden-plot .moon{position:absolute;top:10px;right:16px;font-size:26px;}
+.garden-plot .sun{position:absolute;top:10px;right:16px;font-size:26px;}
+.garden-plot .cloud2{position:absolute;font-size:20px;opacity:.85;animation:driftcloud 40s linear infinite;}
+@keyframes driftcloud{from{transform:translateX(-30px);}to{transform:translateX(340px);}}
+.garden-plot .sparkle{position:absolute;font-size:12px;opacity:0;animation:twinkle 2.6s ease-in-out infinite;}
+@keyframes twinkle{0%,100%{opacity:0;}50%{opacity:.9;}}
+.gcat{cursor:pointer;}
+.gcat .catname{
+  position:absolute;top:-16px;left:50%;transform:translateX(-50%);
+  font-size:9px;background:#fff;color:var(--brown);padding:1px 6px;border-radius:8px;
+  white-space:nowrap;box-shadow:0 2px 0 rgba(0,0,0,.08);
+}
+.gcat .heart-badge{
+  position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);
+  font-size:8px;background:#fff0f5;color:var(--pink-text);padding:0 5px;border-radius:8px;
+  white-space:nowrap;font-weight:bold;
+}
+.gcat .max-star{position:absolute;top:-8px;right:-8px;font-size:13px;}
+.speech-bubble{
+  position:absolute;background:#fff;border:2px solid var(--pink-deep);border-radius:14px;
+  padding:6px 10px;font-size:12px;color:var(--pink-text);font-weight:bold;
+  white-space:nowrap;z-index:20;pointer-events:none;
+  animation:bubblepop 1.6s ease forwards;
+}
+@keyframes bubblepop{
+  0%{opacity:0;transform:translate(-50%,4px) scale(.7);}
+  15%{opacity:1;transform:translate(-50%,-6px) scale(1);}
+  80%{opacity:1;}
+  100%{opacity:0;transform:translate(-50%,-16px) scale(1);}
+}
+.heart-pop{
+  position:absolute;font-size:18px;pointer-events:none;z-index:19;
+  animation:heartfloat 1s ease forwards;
+}
+@keyframes heartfloat{
+  0%{opacity:1;transform:translate(0,0) scale(.6);}
+  100%{opacity:0;transform:translate(0,-38px) scale(1.2);}
+}
+.cat-catalog{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.cat-catalog .centry{
+  position:relative;background:#fff;border:3px solid var(--mint);border-radius:14px;
+  text-align:center;padding:10px 4px 8px;
+}
+.cat-catalog .centry.rarity-common{border-color:#9fd8b8;}
+.cat-catalog .centry.rarity-rare{border-color:#8fb4f0;}
+.cat-catalog .centry.rarity-super{border-color:#ffcf6b;box-shadow:0 0 0 2px #fff2cf inset;}
+.cat-catalog .centry.rarity-ultra{
+  border-color:#ff9fd6;
+  box-shadow:0 0 0 2px #ffe3f4 inset;
+  background:linear-gradient(180deg,#fff,#fff3fb);
+}
+.cat-catalog .centry.locked{filter:grayscale(1);opacity:.55;}
+.cat-catalog .centry .emoji{font-size:26px;}
+.cat-catalog .centry .cname{font-size:11px;font-weight:bold;margin-top:2px;}
+.cat-catalog .centry .rarity-tag{
+  font-size:9px;color:#fff;border-radius:8px;padding:1px 6px;display:inline-block;margin-top:3px;
+}
+.rarity-tag.common{background:#7fc79c;}
+.rarity-tag.rare{background:#6f97e0;}
+.rarity-tag.super{background:#e6a63a;}
+.rarity-tag.ultra{background:#e567b0;}
+.cat-catalog .centry .cost{font-size:10px;color:var(--brown-soft);margin-top:3px;}
+.cat-catalog .centry .heart-count{font-size:10px;color:var(--pink-text);margin-top:3px;font-weight:bold;}
+.cat-catalog .centry .max-badge{
+  position:absolute;top:-6px;right:-4px;font-size:15px;
+  filter:drop-shadow(0 1px 0 rgba(0,0,0,.15));
+}
+.cat-catalog .centry button{
+  margin-top:6px;width:100%;font-family:inherit;font-size:11px;font-weight:bold;
+  border:none;border-radius:999px;padding:6px 4px;cursor:pointer;color:#fff;
+  background:linear-gradient(180deg, var(--pink-deep), #ff7aa8);
+}
+.cat-catalog .centry button:disabled{background:#e3d6cf;cursor:default;}
+
+
+.hidden{display:none !important;}
+.filepick{
+  border:2px dashed var(--mint-deep);border-radius:16px;padding:14px;text-align:center;font-size:13px;color:var(--brown-soft);
+}
+input[type=file]{font-family:inherit;font-size:12px;}
+.toast{
+  position:fixed;bottom:96px;left:50%;transform:translateX(-50%);
+  background:var(--brown);color:#fff;padding:10px 18px;border-radius:999px;font-size:13px;
+  opacity:0;pointer-events:none;transition:opacity .25s;z-index:300;
+}
+.toast.show{opacity:.92;}
+.center{text-align:center;}
+.small-note{font-size:11px;color:var(--brown-soft);text-align:center;margin-top:6px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="logo">🏝️ ねこ島 単語コレクション</div>
+    <div class="coin-badge"><span class="icon">🐾</span><span id="coinCount">0</span></div>
+  </div>
+
+  <main>
+    <!-- ================= HOME ================= -->
+    <section id="page-home" class="visible">
+      <div class="instruction-banner">
+        📌 最初に、「Words」ファイルと、「きろく」ファイルを読み込んでください
+      </div>
+      <div class="island">
+        <div class="cloud" style="width:60px;height:20px;top:14px;left:20px;"></div>
+        <div class="cloud" style="width:40px;height:16px;top:30px;left:70px;"></div>
+        <div class="cloud" style="width:50px;height:18px;top:18px;right:30px;"></div>
+        <div class="wave"></div>
+        <div class="palm" style="left:8%;">🌴</div>
+        <div class="palm" style="right:8%;">🌴</div>
+        <div class="cathouse">🏠</div>
+        <div class="catwalk" id="homeWalkCat" style="bottom:38%;">🐱</div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-box"><div class="num" id="statAnswered">0</div><div class="lbl">回答した単語</div></div>
+        <div class="stat-box"><div class="num" id="statAccuracy">--%</div><div class="lbl">せいかい率</div></div>
+        <div class="stat-box"><div class="num" id="statCombo">0</div><div class="lbl">さいだいコンボ</div></div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">📖 きょうの単語ブック</h2>
+        <p style="font-size:13px;color:var(--brown-soft);margin:0 0 10px;" id="csvStatus">単語データを読みこみ中…</p>
+        <div class="progressbar" style="margin-bottom:10px;">
+          <div class="fill" id="bookProgress" style="width:0%;"></div>
+        </div>
+        <p style="font-size:12px;color:var(--brown-soft);margin:0 0 14px;" id="bookProgressLabel">0 / 0 語</p>
+        <button class="btn" id="startQuizBtn" style="width:100%;">クイズをはじめる（10問）</button>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">💾 セーブ＆ロード</h2>
+        <p style="font-size:12px;color:var(--brown-soft);margin:0 0 10px;">きろくをファイルに保存したり、前回のつづきを読みこめます。</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn-outline" id="saveBtn">📥 きろくをほぞん</button>
+          <label class="btn-outline" style="cursor:pointer;">📤 きろくを読みこむ
+            <input type="file" id="loadInput" accept="application/json" class="hidden">
+          </label>
+        </div>
+      </div>
+
+      <div class="card hidden" id="csvPickCard">
+        <h2 class="section-title">📂 単語ファイルを選んでね</h2>
+        <div class="filepick">
+          words.csv が自動で読みこめませんでした。<br>下のボタンから同じフォルダの words.csv を選んでください。
+          <div style="margin-top:10px;">
+            <input type="file" id="csvInput" accept=".csv,text/csv">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= QUIZ ================= -->
+    <section id="page-quiz">
+      <div class="card">
+        <div class="qmeta">
+          <span id="quizProgressText">第1問 / 10問</span>
+          <span class="combo">🔥 コンボ <span id="comboNum">0</span></span>
+        </div>
+        <div class="qcount-dots" id="qDots"></div>
+
+        <div class="sentence-box" id="sentenceBox">Loading...</div>
+        <div class="choices" id="choicesBox"></div>
+        <div class="jp-meaning" id="jpHint"></div>
+
+        <div class="speak-row">
+          <button class="btn-outline" id="speakBtn">🔊 もう一度きく</button>
+        </div>
+
+        <div class="answer-row">
+          <input type="text" id="answerInput" placeholder="えいごで入力してね" autocomplete="off" autocapitalize="off" spellcheck="false">
+        </div>
+        <button class="btn mint" id="submitBtn" style="width:100%;">こたえる</button>
+
+        <div id="feedbackArea"></div>
+
+        <div class="center" style="margin-top:12px;">
+          <button class="btn" id="nextBtn" style="display:none;width:100%;">つぎへ →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= QUIZ RESULT ================= -->
+    <section id="page-result">
+      <div class="card center">
+        <h2 class="section-title" style="justify-content:center;">🎉 10問クリア！</h2>
+        <p style="font-size:40px;margin:6px 0;">🐟🐟🐟</p>
+        <p style="font-size:15px;">今回は <b id="resultCorrect">0</b> / 10 問 せいかい！</p>
+        <p style="font-size:15px;margin-bottom:16px;">獲得した ねこコイン：<b id="resultCoins">0</b> 🐾</p>
+        <div style="display:flex;gap:8px;flex-direction:column;">
+          <button class="btn" id="resultContinueBtn">もう10問つづける</button>
+          <button class="btn mint" id="resultGardenBtn">お庭に行く 🌷</button>
+          <button class="btn-outline" id="resultHomeBtn">島マップにもどる</button>
+        </div>
+        <p class="small-note">きりの良いところで「きろくをほぞん」しておくと安心だよ！</p>
+      </div>
+    </section>
+
+    <!-- ================= GARDEN ================= -->
+    <section id="page-garden">
+      <div class="card">
+        <h2 class="section-title">🌷 ねこ島のお庭</h2>
+        <div class="garden-toolbar">
+          <button class="btn-outline" id="toggleNightBtn">🌙 夜にする</button>
+          <button class="btn-outline" id="shuffleBtn">🔀 模様がえ</button>
+        </div>
+        <div class="garden-plot" id="gardenPlot">
+          <div class="empty-msg">まだねこがいません。<br>下から新しいねこをむかえよう！</div>
+        </div>
+        <p class="small-note">ねこをタップして遊ぼう！なでるとなついてくれるよ🐾</p>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">😻 ねこ図鑑（コレクション）</h2>
+        <p style="font-size:12px;color:var(--brown-soft);margin:0 0 10px;">レアなねこほど必要なねこコインが多いよ。集めてなかよくなろう！</p>
+        <div class="cat-catalog" id="catCatalog"></div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">🛍️ かぐショップ</h2>
+        <div class="shop-grid" id="shopGrid"></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="tabbar">
+    <button class="tab-btn active" data-page="home"><span class="ic">🏝️</span>島マップ</button>
+    <button class="tab-btn" data-page="quiz"><span class="ic">📖</span>学習</button>
+    <button class="tab-btn" data-page="garden"><span class="ic">🌷</span>お庭</button>
+  </div>
+
+  <div class="combo-banner" id="comboBanner">🔥 コンボボーナス！コイン2倍！</div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+/* =========================================================================
+   ねこ島 単語コレクション - Eiken Pre-2 vocabulary game
+   Single-file HTML/CSS/JS app
+   ========================================================================= */
+
+/* ---------------------------------------------------------------------
+   1. STATE
+--------------------------------------------------------------------- */
+const DEFAULT_STATE = () => ({
+  coins: 0,
+  combo: 0,
+  maxCombo: 0,
+  totalAnswered: 0,
+  totalCorrect: 0,
+  wordIndex: 0,          // pointer into vocab list for sequential 10-question batches
+  questionCounter: 0,    // total questions ever presented (used for 15/30-question requeue)
+  requeue: {},           // { dueAtQuestionCounter: [csvIndex, ...] }
+  wrongCounts: {},       // csvIndex -> number of times gotten wrong
+  ownedFurniture: {},    // furnitureId -> count owned
+  placedFurniture: [],   // [{id, x, y}]
+  ownedSpecies: {},      // speciesId -> {affection: number, milestones: [5,15,...], x, y}
+  nightMode: false,
+  grammarIndex: 0        // pointer into GRAMMAR_QUESTIONS for the 1-per-round grammar question
+});
+
+let state = DEFAULT_STATE();
+let vocab = [];          // [{word, meaning, idx}]
+let currentBatch = [];   // array of csvIndex for the current 10-question round
+let batchPos = 0;
+let batchCorrect = 0;
+let batchCoins = 0;
+let currentEntry = null;
+let currentSentenceData = null;
+let answered = false;
+
+/* ---------------------------------------------------------------------
+   1b. AUTO-SAVE (localStorage). The download/upload きろく.json flow
+   still exists as a manual backup, but progress now also autosaves
+   into the browser so re-opening the app just continues automatically.
+--------------------------------------------------------------------- */
+const LOCAL_STORAGE_KEY = 'neko_shima_kiroku_v1';
+
+function persistLocal(){
+  try{
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
+  }catch(e){ /* storage unavailable or full - ignore, manual save still works */ }
+}
+
+function loadLocal(){
+  try{
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if(raw){
+      state = Object.assign(DEFAULT_STATE(), JSON.parse(raw));
+      return true;
+    }
+  }catch(e){ /* ignore corrupt data */ }
+  return false;
+}
+
+/* ---------------------------------------------------------------------
+   2. CSV LOADING
+--------------------------------------------------------------------- */
+function parseCSVRows(text){
+  if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // strip BOM
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for(let i = 0; i < text.length; i++){
+    const c = text[i];
+    if(inQuotes){
+      if(c === '"'){
+        if(text[i+1] === '"'){ field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else {
+      if(c === '"') inQuotes = true;
+      else if(c === ',' ){ row.push(field); field = ''; }
+      else if(c === '\n'){ row.push(field); rows.push(row); row = []; field = ''; }
+      else if(c === '\r'){ /* skip */ }
+      else field += c;
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows;
+}
+
+function parseCSV(text){
+  const rows = parseCSVRows(text);
+  const out = [];
+  rows.forEach(cols => {
+    if(!cols || !cols.length) return;
+    const word = (cols[0] || '').trim();
+    if(!word) return;
+    if(cols.length < 2) return;
+    // last column = example sentence (when there are 3+ columns), middle columns = meaning parts
+    let meaning, example;
+    if(cols.length >= 3){
+      example = (cols[cols.length - 1] || '').trim();
+      meaning = cols.slice(1, cols.length - 1).map(s => s.trim()).filter(Boolean).join('、');
+    } else {
+      meaning = (cols[1] || '').trim();
+      example = '';
+    }
+    if(!meaning) return;
+    out.push({word, meaning, example, idx: out.length});
+  });
+  return out;
+}
+
+async function loadCSV(){
+  try{
+    const res = await fetch('words.csv');
+    if(!res.ok) throw new Error('fetch failed');
+    const text = await res.text();
+    vocab = parseCSV(text);
+    onVocabReady();
+  }catch(err){
+    document.getElementById('csvStatus').textContent = '単語データを自動で読みこめませんでした。';
+    document.getElementById('csvPickCard').classList.remove('hidden');
+  }
+}
+
+document.getElementById('csvInput').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    vocab = parseCSV(ev.target.result);
+    document.getElementById('csvPickCard').classList.add('hidden');
+    onVocabReady();
+  };
+  reader.readAsText(file, 'UTF-8');
+});
+
+function onVocabReady(){
+  document.getElementById('csvStatus').textContent = '単語データを読みこみました！';
+  updateHomeStats();
+}
+
+/* ---------------------------------------------------------------------
+   3. SENTENCE GENERATION (auto, template based, no external calls)
+--------------------------------------------------------------------- */
+const TEMPLATES = {
+  verb: [
+    "I always try to ___ before dinner.",
+    "We need to ___ this problem as soon as possible.",
+    "Did you ___ that yesterday?",
+    "She decided to ___ every weekend.",
+    "Please ___ this carefully before you start.",
+    "They plan to ___ it next month.",
+    "My teacher told us to ___ more often.",
+    "He wants to ___ something new this year.",
+    "Can you ___ it for me, please?",
+    "It is important to ___ before the deadline."
+  ],
+  noun: [
+    "The ___ was more important than we thought.",
+    "Everyone was talking about the ___ at school.",
+    "I read some news about the ___ this morning.",
+    "This is a good example of a ___.",
+    "There was a big ___ in the town yesterday.",
+    "My father explained the ___ to me.",
+    "We learned about the ___ in class today.",
+    "The ___ surprised all of the students.",
+    "She wrote a report about the ___.",
+    "Nobody expected such a ___ this year."
+  ],
+  adjective: [
+    "The situation seemed very ___ to everyone.",
+    "It was a ___ day for the whole team.",
+    "My teacher said the plan was ___.",
+    "The story sounded ___ to all of us.",
+    "Everyone agreed that the idea was ___.",
+    "The weather has been ___ all week.",
+    "His answer was surprisingly ___.",
+    "That restaurant is famous for being ___.",
+    "The results of the test were ___.",
+    "Her explanation was ___ and easy to follow."
+  ],
+  adverb: [
+    "He finished the work ___.",
+    "___, she decided not to go to the party.",
+    "The team worked ___ throughout the project.",
+    "The train arrived ___ this morning.",
+    "___, nobody noticed the mistake.",
+    "She answered the question ___.",
+    "My brother speaks English ___.",
+    "The plan changed ___ last week.",
+    "___, we finished the trip without any problems.",
+    "He looked at the letter ___."
+  ],
+  phrase: [
+    "___, the meeting was moved to another day.",
+    "We finished the project ___.",
+    "___, he kept working on the plan.",
+    "___, everyone was happy with the result.",
+    "My sister called me ___ last night.",
+    "___, the store closed earlier than usual.",
+    "The teacher explained the topic ___.",
+    "___, we could not finish the homework in time.",
+    "The whole class agreed ___.",
+    "___, they decided to change their plan."
+  ]
+};
+
+/* ---------------------------------------------------------------------
+   3b. GRAMMAR QUESTIONS (英検準2級レベル文法) — one mixed into each 10-question round
+--------------------------------------------------------------------- */
+const GRAMMAR_QUESTIONS = [
+  // 自動詞・他動詞
+  {category:'自動詞・他動詞', prompt:"The company will ___ a new product next month.", answer:'launch', choices:['launch','arrive','happen','occur']},
+  {category:'自動詞・他動詞', prompt:"He ___ the airport two hours early.", answer:'reached', choices:['reached','arrived','got','came']},
+  {category:'自動詞・他動詞', prompt:"Prices have ___ sharply this year.", answer:'risen', choices:['risen','raised','rose','raise']},
+  {category:'自動詞・他動詞', prompt:"She ___ the flag every morning.", answer:'raises', choices:['raises','rises','arises','lies']},
+  // 時制
+  {category:'時制', prompt:"I ___ this movie yesterday.", answer:'watched', choices:['watched','have watched','was watching','had watched']},
+  {category:'時制', prompt:"___, I have finished my homework.", answer:'Already', choices:['Already','Just now','Just','Yet']},
+  {category:'時制', prompt:"By the time we arrived, the movie ___.", answer:'had already started', choices:['had already started','already started','has already started','was already starting']},
+  {category:'時制', prompt:"He said that the earth ___ around the sun.", answer:'goes', choices:['goes','went','has gone','go']},
+  // 受動態
+  {category:'受動態', prompt:"The window ___ by the strong wind last night.", answer:'was broken', choices:['was broken','broke','has broken','breaks']},
+  {category:'受動態', prompt:"This book ___ by millions of people around the world.", answer:'has been read', choices:['has been read','has read','reads','is reading']},
+  {category:'受動態', prompt:"The report must ___ by Friday.", answer:'be finished', choices:['be finished','finish','have finished','finishing']},
+  {category:'受動態', prompt:"The letter ___ when I arrived.", answer:'was being written', choices:['was being written','wrote','had write','writes']},
+  // 助動詞
+  {category:'助動詞', prompt:"You ___ have locked the door — I can see it's still open.", answer:"can't", choices:["can't",'mustn\'t','shouldn\'t','needn\'t']},
+  {category:'助動詞', prompt:"He ___ have taken the wrong train because he isn't here yet.", answer:'must', choices:['must','may','can','will']},
+  {category:'助動詞', prompt:"You cannot ___ careful when driving on icy roads.", answer:'be too', choices:['be too','too be','being too','be very']},
+  // 不定詞
+  {category:'不定詞', prompt:"It was kind ___ to help me.", answer:'of you', choices:['of you','for you','of your','for your']},
+  {category:'不定詞', prompt:"He left home early, ___ return.", answer:'never to', choices:['never to','not to','never for','to never']},
+  {category:'不定詞', prompt:"The meeting ___ take place next Monday.", answer:'is to', choices:['is to','is for','will to','is being to']},
+  {category:'不定詞', prompt:"She seems ___ the exam yesterday.", answer:'to have passed', choices:['to have passed','to pass','to be passing','to passed']},
+  {category:'不定詞', prompt:"___, I don't think the plan will work.", answer:'To be honest', choices:['To be honest','To honest','Being honest','For honest']},
+  {category:'不定詞', prompt:"He hurried to the station, only ___ that the train had already left.", answer:'to find', choices:['to find','finding','found','find']},
+  // 関係詞
+  {category:'関係詞', prompt:"The man ___ is standing over there is my uncle.", answer:'who', choices:['who','whom','whose','which']},
+  {category:'関係詞', prompt:"The book ___ I borrowed from you was excellent.", answer:'which', choices:['which','who','whose','whom']},
+  {category:'関係詞', prompt:"My brother, ___ lives in Osaka, is visiting us next week.", answer:'who', choices:['who','that','whom','whose']},
+  {category:'関係詞', prompt:"That is the girl ___ father is a famous singer.", answer:'whose', choices:['whose','who','whom','which']},
+  {category:'関係詞', prompt:"___ he said surprised everyone.", answer:'What', choices:['What','That','Which','Who']},
+  {category:'関係詞', prompt:"This is the house ___ I was born.", answer:'where', choices:['where','which','that','when']},
+  {category:'関係詞', prompt:"This is the reason ___ I called you.", answer:'why', choices:['why','which','where','what']},
+  {category:'関係詞', prompt:"I remember the day ___ we first met.", answer:'when', choices:['when','which','where','that']},
+  // 比較
+  {category:'比較', prompt:"This building is ___ as that one.", answer:'twice as tall', choices:['twice as tall','twice tall','twice as taller','two times tall as']},
+  {category:'比較', prompt:"Of the two sisters, Mary is ___.", answer:'the taller', choices:['the taller','taller','the tallest','tallest']},
+  {category:'比較', prompt:"The more you practice, ___ you become.", answer:'the better', choices:['the better','better','the best','more better']},
+  {category:'比較', prompt:"Health is ___ than any other thing.", answer:'more important', choices:['more important','the most important','as important','most important']},
+  {category:'比較', prompt:"Please reply ___.", answer:'as soon as possible', choices:['as soon as possible','as soon as','soon as possible','as sooner as possible']},
+  {category:'比較', prompt:"He is ___ a teacher as a friend to his students.", answer:'not so much', choices:['not so much','not as much','not so','no so much']},
+  {category:'比較', prompt:"A wise person ___ to lie.", answer:'knows better than', choices:['knows better than','knows well than','knows more than','knows best than']},
+  {category:'比較', prompt:"She ___ lives in this town; she moved away last year.", answer:'no longer', choices:['no longer','not longer','no more','not anymore']},
+  {category:'比較', prompt:"This is the best movie ___ ever seen.", answer:'that I have', choices:['that I have','that I had','which I have','what I have']},
+  // 動名詞
+  {category:'動名詞', prompt:"She is good ___ languages.", answer:'at learning', choices:['at learning','at learn','to learning','to learn']},
+  {category:'動名詞', prompt:"He finished ___ his homework before dinner.", answer:'doing', choices:['doing','to do','do','done']},
+  {category:'動名詞', prompt:"I remember ___ the door before I left.", answer:'locking', choices:['locking','to lock','lock','locked']},
+  {category:'動名詞', prompt:"She denied ___ broken the vase, although the pieces were in her room.", answer:'having', choices:['having','to have','have','has']},
+  {category:'動名詞', prompt:"She was surprised at ___ winning the prize.", answer:'his', choices:['his','he','to him','for him']},
+  // 仮定法
+  {category:'仮定法', prompt:"If I ___ you, I would apologize.", answer:'were', choices:['were','was','am','will be']},
+  {category:'仮定法', prompt:"If she ___ harder, she would have passed the exam.", answer:'had studied', choices:['had studied','studied','has studied','would study']},
+  {category:'仮定法', prompt:"He talks ___ he knew everything.", answer:'as if', choices:['as if','as','like','so if']},
+  {category:'仮定法', prompt:"I wish I ___ more time to finish this.", answer:'had', choices:['had','have','will have','has']},
+  {category:'仮定法', prompt:"If only I ___ the truth earlier!", answer:'had known', choices:['had known','know','knew','would know']},
+  {category:'仮定法', prompt:"___ his support, I could not have finished this book.", answer:'But for', choices:['But for','Because of','With','Due to']},
+  {category:'仮定法', prompt:"He is, ___, a walking dictionary.", answer:'as it were', choices:['as it were','in fact','of course','at once']},
+];
+
+function classify(entry){
+  const w = entry.word;
+  const m = entry.meaning;
+  if(w.trim().includes(' ')) return 'phrase';
+  const parts = m.split(/[、,]/).map(s=>s.trim()).filter(Boolean);
+  if(parts.some(p => p.endsWith('する'))) return 'verb';
+  if(parts.some(p => p.endsWith('な') || p.endsWith('の'))) return 'adjective';
+  if(parts.some(p => p.endsWith('に')) && parts.every(p => !p.endsWith('する'))) return 'adverb';
+  return 'noun';
+}
+
+// simple deterministic-ish random per question to add variety
+function pick(arr, seed){
+  const i = Math.floor(Math.abs(Math.sin(seed*999.7)) * arr.length) % arr.length;
+  return arr[i];
+}
+
+function escapeRegExp2(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+// common irregular verbs, so inflected example sentences ("came up with", "found out") can still be blanked
+const IRREGULAR_VERBS = {
+  be:['be','is','am',"i'm",'are',"you're",'was','were','been','being'],
+  come:['come','came'], take:['take','took','taken'], get:['get','got','gotten'],
+  find:['find','found'], give:['give','gave','given'], go:['go','went','gone'],
+  do:['do','did','done'], have:['have','had'], make:['make','made'],
+  say:['say','said'], see:['see','saw','seen'], know:['know','knew','known'],
+  think:['think','thought'], tell:['tell','told'], become:['become','became'],
+  begin:['begin','began','begun'], break:['break','broke','broken'],
+  bring:['bring','brought'], build:['build','built'], buy:['buy','bought'],
+  catch:['catch','caught'], choose:['choose','chose','chosen'],
+  drive:['drive','drove','driven'], eat:['eat','ate','eaten'],
+  fall:['fall','fell','fallen'], feel:['feel','felt'], fly:['fly','flew','flown'],
+  forget:['forget','forgot','forgotten'], grow:['grow','grew','grown'],
+  hear:['hear','heard'], hold:['hold','held'], keep:['keep','kept'],
+  leave:['leave','left'], lose:['lose','lost'], meet:['meet','met'],
+  pay:['pay','paid'], ride:['ride','rode','ridden'], run:['run','ran'],
+  sell:['sell','sold'], send:['send','sent'], sit:['sit','sat'],
+  speak:['speak','spoke','spoken'], spend:['spend','spent'],
+  stand:['stand','stood'], teach:['teach','taught'], wear:['wear','wore','worn'],
+  win:['win','won'], write:['write','wrote','written'],
+  understand:['understand','understood'], wake:['wake','woke','woken'],
+  hide:['hide','hid','hidden'], bite:['bite','bit','bitten'],
+  sink:['sink','sank','sunk'], blow:['blow','blew','blown'],
+  draw:['draw','drew','drawn'], throw:['throw','threw','thrown'],
+  freeze:['freeze','froze','frozen'], steal:['steal','stole','stolen'],
+  swim:['swim','swam','swum'], ring:['ring','rang','rung'],
+  sing:['sing','sang','sung'], let:['let','let'], put:['put','put'],
+  cut:['cut','cut'], set:['set','set'], read:['read','read'],
+  dig:['dig','dug'], flee:['flee','fled'], swear:['swear','swore','sworn']
+};
+
+function firstTokenPattern(tok){
+  const forms = IRREGULAR_VERBS[tok.toLowerCase()] || [tok];
+  const alts = forms.map(f => {
+    if(/[^aeiou]y$/i.test(f)){
+      // consonant+y verbs: occupy->occupied/occupies, ally->allied/allies
+      const stem = escapeRegExp2(f.slice(0, -1));
+      return `${stem}(?:y|ied|ies)`;
+    }
+    return `${escapeRegExp2(f)}(?:e?s|e?d|ing)?`;
+  });
+  return `(?:${[...new Set(alts)].join('|')})`;
+}
+
+// builds a regex that finds `word` (or a natural English inflection of it) inside a sentence,
+// allowing up to a few inserted words between tokens for phrasal verbs (e.g. "look it up")
+function buildBlankRegex(word){
+  const tokens = word.trim().split(/\s+/);
+  const parts = tokens.map((tok, i) => i === 0 ? firstTokenPattern(tok) : escapeRegExp2(tok));
+  return new RegExp(parts.join('(?:\\s+\\w+){0,3}\\s+'), 'i');
+}
+
+function buildSentence(entry, seed){
+  if(entry.isGrammar){
+    const prompt = entry.grammarPrompt;
+    const idx = prompt.indexOf('___');
+    const fullText = prompt.replace('___', entry.word);
+    const blankText = prompt.replace('___', '<span class="blank">＿＿＿＿＿</span>');
+    return {fullText, blankText, matchStart: idx, matchLen: entry.word.length, category: 'grammar'};
+  }
+  if(entry.example && entry.example.trim()){
+    const ex = entry.example.trim();
+    let m = ex.match(new RegExp(escapeRegExp2(entry.word), 'i'));
+    if(!m){
+      try{ m = ex.match(buildBlankRegex(entry.word)); }catch(e){ m = null; }
+    }
+    if(m){
+      const idx = m.index, len = m[0].length;
+      return {
+        fullText: ex,
+        blankText: ex.slice(0, idx) + '<span class="blank">＿＿＿＿＿</span>' + ex.slice(idx + len),
+        matchStart: idx, matchLen: len, category: 'example'
+      };
+    }
+    return {
+      fullText: ex,
+      blankText: ex + ' <span class="blank">＿＿＿＿＿</span>',
+      matchStart: -1, matchLen: 0, category: 'example'
+    };
+  }
+  // fallback: no example sentence in the CSV row -> auto-generated template
+  const cat = classify(entry);
+  const template = pick(TEMPLATES[cat] || TEMPLATES.noun, seed);
+  const fullText = template.replace('___', entry.word);
+  const blankText = template.replace('___', '<span class="blank">＿＿＿＿＿</span>');
+  const ti = fullText.toLowerCase().indexOf(entry.word.toLowerCase());
+  return {fullText, blankText, matchStart: ti, matchLen: entry.word.length, category: cat};
+}
+
+/* ---------------------------------------------------------------------
+   4. SPEECH SYNTHESIS  (speaks the sentence, but skips the target word
+      so the answer isn't given away)
+--------------------------------------------------------------------- */
+function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+function speakCurrentQuestion(){
+  if(!('speechSynthesis' in window) || !currentEntry || !currentSentenceData) return;
+  window.speechSynthesis.cancel();
+  const full = currentSentenceData.fullText;
+  let before = full, after = '';
+  if(currentSentenceData.matchStart !== undefined && currentSentenceData.matchStart >= 0){
+    before = full.slice(0, currentSentenceData.matchStart);
+    after = full.slice(currentSentenceData.matchStart + currentSentenceData.matchLen);
+  }
+  if(before.trim()){
+    const u1 = new SpeechSynthesisUtterance(before);
+    u1.lang = 'en-US'; u1.rate = 0.92;
+    window.speechSynthesis.speak(u1);
+  }
+  if(after.trim()){
+    const u2 = new SpeechSynthesisUtterance(after);
+    u2.lang = 'en-US'; u2.rate = 0.92;
+    window.speechSynthesis.speak(u2);
+  }
+}
+
+function speakWord(word){
+  if(!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(word);
+  u.lang = 'en-US'; u.rate = 0.85;
+  window.speechSynthesis.speak(u);
+}
+
+/* ---------------------------------------------------------------------
+   4b. CHOICE (4-option) GENERATION
+--------------------------------------------------------------------- */
+let currentChoices = [];
+
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function buildChoices(entry){
+  if(entry.isGrammar){
+    return shuffle(entry.grammarChoices);
+  }
+  const pool = vocab.filter(v => v.idx !== entry.idx && v.word.toLowerCase() !== entry.word.toLowerCase());
+  const distractors = shuffle(pool).slice(0, 3).map(v => v.word);
+  return shuffle([entry.word, ...distractors]);
+}
+
+function renderChoices(){
+  const box = document.getElementById('choicesBox');
+  box.innerHTML = '';
+  currentChoices.forEach(word => {
+    const b = document.createElement('span');
+    b.className = 'choice-pill';
+    b.textContent = word;
+    box.appendChild(b);
+  });
+}
+
+/* ---------------------------------------------------------------------
+   5. QUIZ FLOW
+--------------------------------------------------------------------- */
+let batchGrammarSlot = -1; // which of the 10 questions this round is a grammar question (0-9)
+
+function startNewBatch(){
+  if(vocab.length === 0){
+    showToast('単語データがまだ読みこまれていません');
+    return;
+  }
+  currentBatch = [];
+  batchPos = 0;
+  batchCorrect = 0;
+  batchCoins = 0;
+  batchGrammarSlot = GRAMMAR_QUESTIONS.length ? Math.floor(Math.random() * 10) : -1;
+  goTo('quiz');
+  loadNextQuestion();
+}
+
+function nextCsvIndexFromRequeue(){
+  const key = String(state.questionCounter);
+  const list = state.requeue[key];
+  if(list && list.length){
+    const csvIdx = list.shift();
+    if(list.length === 0) delete state.requeue[key];
+    return csvIdx;
+  }
+  return null;
+}
+
+function nextSequentialIndex(){
+  if(vocab.length === 0) return null;
+  const i = state.wordIndex % vocab.length;
+  state.wordIndex = (state.wordIndex + 1) % vocab.length;
+  return vocab[i].idx;
+}
+
+function nextGrammarEntry(){
+  const q = GRAMMAR_QUESTIONS[state.grammarIndex % GRAMMAR_QUESTIONS.length];
+  state.grammarIndex = (state.grammarIndex + 1) % GRAMMAR_QUESTIONS.length;
+  return {
+    word: q.answer,
+    meaning: '文法ポイント： ' + q.category,
+    example: null,
+    idx: null,
+    isGrammar: true,
+    grammarPrompt: q.prompt,
+    grammarChoices: q.choices
+  };
+}
+
+function loadNextQuestion(){
+  if(batchPos >= 10){
+    finishBatch();
+    return;
+  }
+  answered = false;
+
+  if(batchPos === batchGrammarSlot){
+    currentEntry = nextGrammarEntry();
+  } else {
+    let csvIdx = nextCsvIndexFromRequeue();
+    if(csvIdx === null) csvIdx = nextSequentialIndex();
+    if(csvIdx === null || !vocab[csvIdx]){
+      // fall back safety
+      csvIdx = vocab.length ? vocab[state.wordIndex % vocab.length].idx : null;
+    }
+    currentEntry = vocab.find(v => v.idx === csvIdx) || vocab[0];
+  }
+
+  currentSentenceData = buildSentence(currentEntry, state.questionCounter + 1 + Math.random());
+  currentChoices = buildChoices(currentEntry);
+
+  document.getElementById('sentenceBox').innerHTML = currentSentenceData.blankText;
+  renderChoices();
+  document.getElementById('jpHint').textContent = currentEntry.isGrammar
+    ? currentEntry.meaning
+    : ('意味のヒント： ' + currentEntry.meaning);
+  document.getElementById('answerInput').value = '';
+  document.getElementById('answerInput').disabled = false;
+  document.getElementById('submitBtn').style.display = 'block';
+  document.getElementById('nextBtn').style.display = 'none';
+  document.getElementById('feedbackArea').innerHTML = '';
+  document.getElementById('quizProgressText').textContent = `第${batchPos+1}問 / 10問`;
+  document.getElementById('comboNum').textContent = state.combo;
+  renderDots();
+  setTimeout(()=>{ document.getElementById('answerInput').focus(); speakCurrentQuestion(); }, 250);
+}
+
+function renderDots(){
+  const dots = document.getElementById('qDots');
+  dots.innerHTML = '';
+  for(let i=0;i<10;i++){
+    const s = document.createElement('span');
+    if(i < batchPos) s.className = 'done';
+    else if(i === batchPos) s.className = 'cur';
+    dots.appendChild(s);
+  }
+}
+
+function normalize(s){
+  return s.trim().toLowerCase().replace(/\s+/g,' ');
+}
+
+function submitAnswer(){
+  if(answered) return;
+  const val = document.getElementById('answerInput').value;
+  if(!val.trim()){ return; }
+  answered = true;
+  const correct = normalize(val) === normalize(currentEntry.word);
+  state.totalAnswered++;
+  const fb = document.getElementById('feedbackArea');
+
+  if(correct){
+    state.totalCorrect++;
+    batchCorrect++;
+    state.combo++;
+    if(state.combo > state.maxCombo) state.maxCombo = state.combo;
+    let coinGain = 10;
+    let doubled = false;
+    if(state.combo >= 2){ coinGain *= 2; doubled = true; }
+    state.coins += coinGain;
+    batchCoins += coinGain;
+    fb.innerHTML = currentEntry.isGrammar
+      ? `<div class="feedback correct">🎉 せいかい！ 正解は「${currentEntry.word}」<br>ねこコイン +${coinGain} ${doubled ? '（コンボ2倍！）' : ''}</div>`
+      : `<div class="feedback correct">🎉 せいかい！ 「${currentEntry.word}」＝ ${currentEntry.meaning}<br>ねこコイン +${coinGain} ${doubled ? '（コンボ2倍！）' : ''}</div>`;
+    if(doubled) showCombo();
+  } else {
+    state.combo = 0;
+    if(currentEntry.isGrammar){
+      fb.innerHTML = `<div class="feedback wrong">😿 ざんねん… せいかいは「${currentEntry.word}」</div>`;
+    } else {
+      const csvIdx = currentEntry.idx;
+      state.wrongCounts[csvIdx] = (state.wrongCounts[csvIdx] || 0) + 1;
+      scheduleRequeue(csvIdx, 15);
+      scheduleRequeue(csvIdx, 30);
+      fb.innerHTML = `<div class="feedback wrong">😿 ざんねん… せいかいは「${currentEntry.word}」（${currentEntry.meaning}）<br>15問後・30問後にもう一度出るよ！</div>`;
+    }
+  }
+  document.getElementById('coinCount').textContent = state.coins;
+  document.getElementById('comboNum').textContent = state.combo;
+  document.getElementById('submitBtn').style.display = 'none';
+  document.getElementById('answerInput').disabled = true;
+  document.getElementById('nextBtn').style.display = 'block';
+  speakWord(currentEntry.word);
+  state.questionCounter++;
+  persistLocal();
+}
+
+function scheduleRequeue(csvIdx, offset){
+  const key = String(state.questionCounter + offset);
+  if(!state.requeue[key]) state.requeue[key] = [];
+  state.requeue[key].push(csvIdx);
+}
+
+function showCombo(){
+  const el = document.getElementById('comboBanner');
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+}
+
+function finishBatch(){
+  document.getElementById('resultCorrect').textContent = batchCorrect;
+  document.getElementById('resultCoins').textContent = batchCoins;
+  goTo('result');
+  updateHomeStats();
+}
+
+/* ---------------------------------------------------------------------
+   6. GARDEN / SHOP
+--------------------------------------------------------------------- */
+const SHOP_ITEMS = [
+  {id:'tower', name:'キャットタワー', emoji:'🗼', cost:50},
+  {id:'cushion', name:'ピンクのクッション', emoji:'🛏️', cost:30},
+  {id:'toy', name:'ねこじゃらし', emoji:'🧶', cost:20},
+  {id:'bowl', name:'ごはんボウル', emoji:'🍚', cost:15},
+  {id:'flower', name:'花だん', emoji:'🌼', cost:25},
+  {id:'fish', name:'おさかなオブジェ', emoji:'🐟', cost:35},
+  {id:'tent', name:'ねこハウス', emoji:'⛺', cost:60},
+  {id:'lamp', name:'ランタン', emoji:'🏮', cost:18},
+  {id:'scratch', name:'つめとぎポール', emoji:'🪵', cost:28},
+  {id:'basket', name:'まるいベッド', emoji:'🧺', cost:32},
+  {id:'ball', name:'おもちゃボール', emoji:'🎾', cost:15},
+  {id:'tunnel', name:'トンネル', emoji:'🌀', cost:45},
+  {id:'window', name:'まど際ベンチ', emoji:'🪟', cost:42},
+  {id:'aquarium', name:'すいそう', emoji:'🐠', cost:38},
+  {id:'tree', name:'クリスマスツリー', emoji:'🎄', cost:40},
+  {id:'koinobori', name:'こいのぼり', emoji:'🎏', cost:26},
+];
+
+// each species has its own picture (emoji-based illustration), rarity and coin cost.
+// higher rarity = higher cost.
+const CAT_SPECIES = [
+  // コモン
+  {id:'munchkin',    name:'マンチカン',              emoji:'🐱', rarity:'common', rarityLabel:'コモン',       cost:20},
+  {id:'amishort',    name:'アメリカンショートヘア',    emoji:'🐈', rarity:'common', rarityLabel:'コモン',       cost:20},
+  {id:'russianblue', name:'ロシアンブルー',           emoji:'🐈‍⬛', rarity:'common', rarityLabel:'コモン',     cost:25},
+  {id:'british',     name:'ブリティッシュショートヘア', emoji:'😺', rarity:'common', rarityLabel:'コモン',      cost:25},
+  {id:'bobtail',     name:'ジャパニーズボブテイル',    emoji:'😸', rarity:'common', rarityLabel:'コモン',       cost:30},
+  {id:'exotic',      name:'エキゾチックショートヘア',  emoji:'😹', rarity:'common', rarityLabel:'コモン',       cost:30},
+  // レア
+  {id:'scottish',    name:'スコティッシュ・フォールド', emoji:'😻', rarity:'rare',  rarityLabel:'レア',         cost:90},
+  {id:'ragdoll',     name:'ラグドール',               emoji:'😽', rarity:'rare',  rarityLabel:'レア',         cost:100},
+  {id:'abyssinian',  name:'アビシニアン',             emoji:'🙀', rarity:'rare',  rarityLabel:'レア',         cost:110},
+  {id:'tonkinese',   name:'トンキニーズ',             emoji:'😿', rarity:'rare',  rarityLabel:'レア',         cost:120},
+  // スーパーレア
+  {id:'mainecoon',   name:'メインクーン',             emoji:'🦁', rarity:'super', rarityLabel:'スーパーレア', cost:220},
+  {id:'bengal',      name:'ベンガル',                 emoji:'🐆', rarity:'super', rarityLabel:'スーパーレア', cost:230},
+  {id:'norwegian',   name:'ノルウェージャンフォレストキャット', emoji:'🦊', rarity:'super', rarityLabel:'スーパーレア', cost:240},
+  {id:'siberian',    name:'サイベリアン',             emoji:'🐅', rarity:'super', rarityLabel:'スーパーレア', cost:250},
+  // ウルトラレア
+  {id:'singapura',   name:'シンガプーラ',             emoji:'🦄', rarity:'ultra', rarityLabel:'ウルトラレア', cost:480},
+  {id:'sphynx',      name:'スフィンクス',             emoji:'👽', rarity:'ultra', rarityLabel:'ウルトラレア', cost:520},
+  {id:'savannah',    name:'サバンナ',                 emoji:'🐆', rarity:'ultra', rarityLabel:'ウルトラレア', cost:560},
+  {id:'toyger',      name:'トイガー',                 emoji:'🐯', rarity:'ultra', rarityLabel:'ウルトラレア', cost:600},
+];
+const AFFECTION_MILESTONES = [5, 15, 30];
+
+/* ---- meow sound (synthesized, no external audio file needed) ---- */
+let audioCtx = null;
+function playMeow(){
+  try{
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const t0 = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(500, t0);
+    osc.frequency.linearRampToValueAtTime(760, t0 + 0.12);
+    osc.frequency.linearRampToValueAtTime(340, t0 + 0.32);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.linearRampToValueAtTime(0.18, t0 + 0.05);
+    gain.gain.linearRampToValueAtTime(0.0001, t0 + 0.38);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t0);
+    osc.stop(t0 + 0.4);
+  }catch(e){ /* audio not available, ignore */ }
+}
+
+/* ---- furniture shop (decoration only, purely visual) ---- */
+function renderShop(){
+  const grid = document.getElementById('shopGrid');
+  grid.innerHTML = '';
+  SHOP_ITEMS.forEach(item => {
+    const owned = state.ownedFurniture[item.id] || 0;
+    const div = document.createElement('div');
+    div.className = 'shop-item';
+    div.innerHTML = `
+      <div class="emoji">${item.emoji}</div>
+      <div class="name">${item.name}</div>
+      <div class="cost">🐾 ${item.cost}　所持:${owned}</div>
+      <button class="btn small" data-buy="${item.id}">買って置く</button>
+    `;
+    grid.appendChild(div);
+  });
+  grid.querySelectorAll('[data-buy]').forEach(btn => {
+    btn.addEventListener('click', () => buyFurniture(btn.getAttribute('data-buy')));
+  });
+}
+
+function buyFurniture(id){
+  const item = SHOP_ITEMS.find(i => i.id === id);
+  if(!item) return;
+  if(state.coins < item.cost){
+    showToast('ねこコインが足りません！クイズでコインを集めよう🐾');
+    return;
+  }
+  state.coins -= item.cost;
+  state.ownedFurniture[id] = (state.ownedFurniture[id] || 0) + 1;
+  const x = 8 + Math.random() * 78;
+  const y = 12 + Math.random() * 62;
+  state.placedFurniture.push({id, x, y});
+  showToast(`${item.name} を置いたよ！`);
+  document.getElementById('coinCount').textContent = state.coins;
+  renderShop();
+  renderGarden();
+  persistLocal();
+}
+
+/* ---- cat species collection (ねこ図鑑) ---- */
+function welcomeSpecies(id){
+  const sp = CAT_SPECIES.find(s => s.id === id);
+  if(!sp) return;
+  if(state.ownedSpecies[id]){ return; }
+  if(state.coins < sp.cost){
+    showToast('ねこコインが足りません！クイズでコインを集めよう🐾');
+    return;
+  }
+  state.coins -= sp.cost;
+  state.ownedSpecies[id] = {
+    affection: 0,
+    milestones: [],
+    x: 10 + Math.random() * 70,
+    y: 15 + Math.random() * 55
+  };
+  document.getElementById('coinCount').textContent = state.coins;
+  renderShop();
+  renderCatalog();
+  renderGarden();
+  playMeow();
+  showToast(`${sp.name} が お庭に来たよ！「ニャー！」`);
+  goTo('garden');
+  setTimeout(() => spawnMeowEffectFor(id), 200);
+  persistLocal();
+}
+
+function renderCatalog(){
+  const box = document.getElementById('catCatalog');
+  box.innerHTML = '';
+  CAT_SPECIES.forEach(sp => {
+    const owned = state.ownedSpecies[sp.id];
+    const rarityClass = {common:'rarity-common', rare:'rarity-rare', super:'rarity-super', ultra:'rarity-ultra'}[sp.rarity];
+    const tagClass = {common:'common', rare:'rare', super:'super', ultra:'ultra'}[sp.rarity];
+    const div = document.createElement('div');
+    div.className = 'centry ' + rarityClass + (owned ? '' : ' locked');
+    if(owned && owned.affection >= AFFECTION_MILESTONES[AFFECTION_MILESTONES.length - 1]){
+      div.innerHTML += '<span class="max-badge">⭐</span>';
+    }
+    div.innerHTML += `
+      <div class="emoji">${owned ? sp.emoji : '❓'}</div>
+      <div class="cname">${owned ? sp.name : '？？？'}</div>
+      <span class="rarity-tag ${tagClass}">${sp.rarityLabel}</span>
+      ${owned
+        ? `<div class="heart-count">💗 なかよし度 ${owned.affection}</div>`
+        : `<div class="cost">🐾 ${sp.cost}</div><button data-welcome="${sp.id}">むかえる</button>`
+      }
+    `;
+    box.appendChild(div);
+  });
+  box.querySelectorAll('[data-welcome]').forEach(btn => {
+    btn.addEventListener('click', () => welcomeSpecies(btn.getAttribute('data-welcome')));
+  });
+}
+
+/* ---- garden rendering ---- */
+function renderGarden(){
+  const plot = document.getElementById('gardenPlot');
+  plot.classList.toggle('night', !!state.nightMode);
+  plot.innerHTML = '';
+
+  // ambience decorations
+  if(state.nightMode){
+    plot.insertAdjacentHTML('beforeend', '<div class="moon">🌙</div>');
+    const starPositions = [[8,10],[20,22],[40,8],[62,14],[80,20],[92,9],[30,28],[70,26]];
+    starPositions.forEach(([x,y]) => {
+      plot.insertAdjacentHTML('beforeend', `<div class="star" style="left:${x}%;top:${y}%;">✦</div>`);
+    });
+  } else {
+    plot.insertAdjacentHTML('beforeend', '<div class="sun">☀️</div>');
+    plot.insertAdjacentHTML('beforeend', '<div class="cloud2" style="left:10%;top:10%;">☁️</div>');
+    plot.insertAdjacentHTML('beforeend', '<div class="cloud2" style="left:50%;top:6%;animation-delay:-15s;">☁️</div>');
+  }
+
+  const ownedIds = Object.keys(state.ownedSpecies);
+  if(state.placedFurniture.length === 0 && ownedIds.length === 0){
+    plot.insertAdjacentHTML('beforeend', '<div class="empty-msg">まだねこがいません。<br>下から新しいねこをむかえよう！</div>');
+    return;
+  }
+
+  state.placedFurniture.forEach(f => {
+    const item = SHOP_ITEMS.find(i => i.id === f.id);
+    if(!item) return;
+    const d = document.createElement('div');
+    d.className = 'fitem';
+    d.style.left = f.x + '%';
+    d.style.top = f.y + '%';
+    d.textContent = item.emoji;
+    plot.appendChild(d);
+  });
+
+  ownedIds.forEach(id => {
+    const sp = CAT_SPECIES.find(s => s.id === id);
+    const owned = state.ownedSpecies[id];
+    if(!sp || !owned) return;
+    const isMax = owned.affection >= AFFECTION_MILESTONES[AFFECTION_MILESTONES.length - 1];
+    const d = document.createElement('div');
+    d.className = 'gcat';
+    d.dataset.speciesId = id;
+    d.style.left = owned.x + '%';
+    d.style.top = owned.y + '%';
+    d.style.animationDelay = (Math.random() * 6).toFixed(1) + 's';
+    d.innerHTML = `
+      <span class="catname">${sp.name}</span>
+      ${sp.emoji}
+      <span class="heart-badge">💗${owned.affection}</span>
+      ${isMax ? '<span class="max-star">⭐</span>' : ''}
+    `;
+    d.addEventListener('click', (ev) => petCat(id, ev));
+    plot.appendChild(d);
+  });
+}
+
+function spawnMeowEffectFor(speciesId){
+  const el = document.querySelector(`.gcat[data-species-id="${speciesId}"]`);
+  if(!el) return;
+  showSpeechBubble(el, 'ニャー！');
+  spawnHearts(el);
+}
+
+function showSpeechBubble(el, text){
+  const plot = document.getElementById('gardenPlot');
+  const bubble = document.createElement('div');
+  bubble.className = 'speech-bubble';
+  bubble.textContent = text;
+  bubble.style.left = el.style.left;
+  bubble.style.top = `calc(${el.style.top} - 14px)`;
+  plot.appendChild(bubble);
+  setTimeout(() => bubble.remove(), 1600);
+}
+
+function spawnHearts(el){
+  const plot = document.getElementById('gardenPlot');
+  for(let i = 0; i < 3; i++){
+    const h = document.createElement('div');
+    h.className = 'heart-pop';
+    h.textContent = ['💗','✨','💕'][i % 3];
+    const jitter = (Math.random() * 16 - 8);
+    h.style.left = `calc(${el.style.left} + ${jitter}px)`;
+    h.style.top = el.style.top;
+    h.style.animationDelay = (i * 0.12) + 's';
+    plot.appendChild(h);
+    setTimeout(() => h.remove(), 1100 + i * 120);
+  }
+}
+
+const PET_MESSAGES = ['ニャー♪', 'ゴロゴロ...', 'なでなで好き！', 'にゃふ〜ん', 'もっとなでて〜'];
+
+function petCat(speciesId, ev){
+  const owned = state.ownedSpecies[speciesId];
+  const sp = CAT_SPECIES.find(s => s.id === speciesId);
+  if(!owned || !sp) return;
+  const el = ev.currentTarget;
+  playMeow();
+  showSpeechBubble(el, pick2(PET_MESSAGES));
+  spawnHearts(el);
+
+  owned.affection++;
+
+  // occasional small coin bonus from petting
+  if(Math.random() < 0.2){
+    state.coins += 3;
+    document.getElementById('coinCount').textContent = state.coins;
+    showToast('なついてボーナス！🐾+3');
+  }
+
+  // affection milestone rewards
+  const nextMilestone = AFFECTION_MILESTONES.find(m => owned.affection === m);
+  if(nextMilestone){
+    const bonus = nextMilestone * 2;
+    state.coins += bonus;
+    document.getElementById('coinCount').textContent = state.coins;
+    showToast(`${sp.name} のなかよし度アップ！ボーナス🐾+${bonus}`);
+  }
+
+  renderGarden();
+  renderCatalog();
+  persistLocal();
+}
+
+function pick2(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+
+document.getElementById('toggleNightBtn').addEventListener('click', () => {
+  state.nightMode = !state.nightMode;
+  document.getElementById('toggleNightBtn').textContent = state.nightMode ? '☀️ 昼にする' : '🌙 夜にする';
+  renderGarden();
+  persistLocal();
+});
+
+document.getElementById('shuffleBtn').addEventListener('click', () => {
+  state.placedFurniture.forEach(f => {
+    f.x = 8 + Math.random() * 78;
+    f.y = 12 + Math.random() * 62;
+  });
+  Object.values(state.ownedSpecies).forEach(o => {
+    o.x = 10 + Math.random() * 70;
+    o.y = 15 + Math.random() * 55;
+  });
+  renderGarden();
+  showToast('お庭の模様がえをしたよ🔀');
+  persistLocal();
+});
+
+/* ---------------------------------------------------------------------
+   7. HOME STATS
+--------------------------------------------------------------------- */
+function updateHomeStats(){
+  document.getElementById('coinCount').textContent = state.coins;
+  document.getElementById('statAnswered').textContent = state.totalAnswered;
+  document.getElementById('statAccuracy').textContent = state.totalAnswered
+    ? Math.round(state.totalCorrect / state.totalAnswered * 100) + '%'
+    : '--%';
+  document.getElementById('statCombo').textContent = state.maxCombo;
+  const total = vocab.length || 1;
+  const doneCount = state.wordIndex;
+  document.getElementById('bookProgress').style.width = Math.min(100, doneCount/total*100) + '%';
+  document.getElementById('bookProgressLabel').textContent = `${Math.min(doneCount,total)} / ${total} 語（一周したらまた最初から）`;
+}
+
+/* ---------------------------------------------------------------------
+   8. SAVE / LOAD
+--------------------------------------------------------------------- */
+function saveProgress(){
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'きろく.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('きろくをほぞんしました💾');
+}
+
+document.getElementById('loadInput').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    try{
+      const loaded = JSON.parse(ev.target.result);
+      state = Object.assign(DEFAULT_STATE(), loaded);
+      updateHomeStats();
+      document.getElementById('toggleNightBtn').textContent = state.nightMode ? '☀️ 昼にする' : '🌙 夜にする';
+      renderShop();
+      renderCatalog();
+      renderGarden();
+      showToast('つづきから読みこみました！');
+      persistLocal();
+    }catch(err){
+      showToast('ファイルを読みこめませんでした');
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+  e.target.value = '';
+});
+
+/* ---------------------------------------------------------------------
+   9. NAVIGATION / MISC
+--------------------------------------------------------------------- */
+function goTo(page){
+  document.querySelectorAll('main > section').forEach(s => s.classList.remove('visible'));
+  document.getElementById('page-' + page).classList.add('visible');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const map = {home:0, quiz:1, garden:2};
+  const idx = map[page === 'result' ? 'quiz' : page];
+  if(idx !== undefined) document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+  if(page === 'home') updateHomeStats();
+  if(page === 'garden'){ renderShop(); renderCatalog(); renderGarden(); }
+}
+
+let toastTimer = null;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> t.classList.remove('show'), 2200);
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => goTo(btn.getAttribute('data-page')));
+});
+document.getElementById('startQuizBtn').addEventListener('click', startNewBatch);
+document.getElementById('submitBtn').addEventListener('click', submitAnswer);
+document.getElementById('answerInput').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter'){
+    if(!answered) submitAnswer(); else { batchPos++; loadNextQuestion(); }
+  }
+});
+document.getElementById('nextBtn').addEventListener('click', () => { batchPos++; loadNextQuestion(); });
+document.getElementById('speakBtn').addEventListener('click', speakCurrentQuestion);
+document.getElementById('saveBtn').addEventListener('click', saveProgress);
+document.getElementById('resultContinueBtn').addEventListener('click', startNewBatch);
+document.getElementById('resultGardenBtn').addEventListener('click', () => goTo('garden'));
+document.getElementById('resultHomeBtn').addEventListener('click', () => goTo('home'));
+
+/* init */
+const hadLocalSave = loadLocal();
+document.getElementById('toggleNightBtn').textContent = state.nightMode ? '☀️ 昼にする' : '🌙 夜にする';
+loadCSV();
+updateHomeStats();
+renderShop();
+renderCatalog();
+renderGarden();
+if(hadLocalSave) showToast('前回のつづきから読みこみました🐾');
+
+// safety-net autosave: also save periodically and right before the tab/app closes
+setInterval(persistLocal, 20000);
+document.addEventListener('visibilitychange', () => { if(document.hidden) persistLocal(); });
+window.addEventListener('beforeunload', persistLocal);
+
+// PWA: register the service worker for offline support (only works when served over https/localhost)
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* offline support unavailable, app still works online */ });
+  });
+}
+</script>
+</body>
+</html>
