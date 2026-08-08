@@ -273,12 +273,18 @@ h2.section-title{
   text-align:center;padding:10px 4px 8px;
 }
 .cat-catalog .centry.rarity-common{border-color:#9fd8b8;}
+.cat-catalog .centry.rarity-uncommon{border-color:#7fc8d8;}
 .cat-catalog .centry.rarity-rare{border-color:#8fb4f0;}
 .cat-catalog .centry.rarity-super{border-color:#ffcf6b;box-shadow:0 0 0 2px #fff2cf inset;}
 .cat-catalog .centry.rarity-ultra{
   border-color:#ff9fd6;
   box-shadow:0 0 0 2px #ffe3f4 inset;
   background:linear-gradient(180deg,#fff,#fff3fb);
+}
+.cat-catalog .centry.rarity-legendary{
+  border-color:#c9a0ff;
+  box-shadow:0 0 0 2px #ecdcff inset, 0 0 10px rgba(201,160,255,.55);
+  background:linear-gradient(135deg,#fff,#f5ecff);
 }
 .cat-catalog .centry.locked{filter:grayscale(1);opacity:.55;}
 .cat-catalog .centry .emoji{font-size:26px;}
@@ -287,10 +293,22 @@ h2.section-title{
   font-size:9px;color:#fff;border-radius:8px;padding:1px 6px;display:inline-block;margin-top:3px;
 }
 .rarity-tag.common{background:#7fc79c;}
+.rarity-tag.uncommon{background:#4fa9c2;}
 .rarity-tag.rare{background:#6f97e0;}
 .rarity-tag.super{background:#e6a63a;}
 .rarity-tag.ultra{background:#e567b0;}
+.rarity-tag.legendary{background:linear-gradient(90deg,#a86bff,#ff8fd0);}
 .cat-catalog .centry .cost{font-size:10px;color:var(--brown-soft);margin-top:3px;}
+
+/* ---------- achievements ---------- */
+.achieve-list{display:flex;flex-direction:column;gap:8px;}
+.achieve-item{display:flex;align-items:center;gap:10px;background:#fff;border:2px solid var(--mint);border-radius:14px;padding:9px 12px;}
+.achieve-item.locked{opacity:.55;filter:grayscale(.35);}
+.achieve-item .aicon{font-size:20px;}
+.achieve-item .atext{flex:1;}
+.achieve-item .atitle{font-size:12.5px;font-weight:bold;color:var(--brown);}
+.achieve-item .adesc{font-size:11px;color:var(--brown-soft);}
+.achieve-item .areward{font-size:11px;color:var(--pink-text);font-weight:bold;white-space:nowrap;}
 .cat-catalog .centry .heart-count{font-size:10px;color:var(--pink-text);margin-top:3px;font-weight:bold;}
 .cat-catalog .centry .max-badge{
   position:absolute;top:-6px;right:-4px;font-size:15px;
@@ -452,6 +470,12 @@ input[type=file]{font-family:inherit;font-size:12px;}
         <h2 class="section-title">🛍️ かぐショップ</h2>
         <div class="shop-grid" id="shopGrid"></div>
       </div>
+
+      <div class="card">
+        <h2 class="section-title">🏆 じっせき</h2>
+        <p style="font-size:12px;color:var(--brown-soft);margin:0 0 10px;">図鑑コンプリートやクイズがんばりで、ボーナスねこコインがもらえるよ！</p>
+        <div class="achieve-list" id="achieveList"></div>
+      </div>
     </section>
   </main>
 
@@ -488,7 +512,8 @@ const DEFAULT_STATE = () => ({
   placedFurniture: [],   // [{id, x, y}]
   ownedSpecies: {},      // speciesId -> {affection: number, milestones: [5,15,...], x, y}
   nightMode: false,
-  grammarIndex: 0        // pointer into GRAMMAR_QUESTIONS for the 1-per-round grammar question
+  grammarIndex: 0,       // pointer into GRAMMAR_QUESTIONS for the 1-per-round grammar question
+  achievements: {}       // achievementId -> true (claimed)
 });
 
 let state = DEFAULT_STATE();
@@ -1031,7 +1056,7 @@ function submitAnswer(){
     batchCorrect++;
     state.combo++;
     if(state.combo > state.maxCombo) state.maxCombo = state.combo;
-    let coinGain = 10;
+    let coinGain = 4;
     let doubled = false;
     if(state.combo >= 2){ coinGain *= 2; doubled = true; }
     state.coins += coinGain;
@@ -1059,6 +1084,7 @@ function submitAnswer(){
   document.getElementById('nextBtn').style.display = 'block';
   speakWord(currentEntry.word);
   state.questionCounter++;
+  checkAchievements();
   persistLocal();
 }
 
@@ -1107,30 +1133,132 @@ const SHOP_ITEMS = [
 // each species has its own picture (emoji-based illustration), rarity and coin cost.
 // higher rarity = higher cost.
 const CAT_SPECIES = [
-  // コモン
+  // ===== コモン (もとからいる子たち。IDや値段は変更しません) =====
   {id:'munchkin',    name:'マンチカン',              emoji:'🐱', rarity:'common', rarityLabel:'コモン',       cost:20},
   {id:'amishort',    name:'アメリカンショートヘア',    emoji:'🐈', rarity:'common', rarityLabel:'コモン',       cost:20},
   {id:'russianblue', name:'ロシアンブルー',           emoji:'🐈‍⬛', rarity:'common', rarityLabel:'コモン',     cost:25},
   {id:'british',     name:'ブリティッシュショートヘア', emoji:'😺', rarity:'common', rarityLabel:'コモン',      cost:25},
   {id:'bobtail',     name:'ジャパニーズボブテイル',    emoji:'😸', rarity:'common', rarityLabel:'コモン',       cost:30},
   {id:'exotic',      name:'エキゾチックショートヘア',  emoji:'😹', rarity:'common', rarityLabel:'コモン',       cost:30},
-  // レア
+  // ===== コモン 新入り =====
+  {id:'kijitora',    name:'キジトラねこ',             emoji:'🐱', rarity:'common', rarityLabel:'コモン', cost:18, filter:'hue-rotate(20deg) saturate(1.3)'},
+  {id:'sabineko',    name:'サビねこ',                 emoji:'🐈', rarity:'common', rarityLabel:'コモン', cost:22, filter:'grayscale(.3) brightness(.9)'},
+  {id:'mikeneko',    name:'みけねこ',                 emoji:'😺', rarity:'common', rarityLabel:'コモン', cost:24, filter:'saturate(1.5)'},
+  {id:'kuroneko',    name:'くろねこ',                 emoji:'🐈‍⬛', rarity:'common', rarityLabel:'コモン', cost:26, filter:'brightness(.7)'},
+  {id:'shironeko',   name:'しろねこ',                 emoji:'😸', rarity:'common', rarityLabel:'コモン', cost:28, filter:'grayscale(1) brightness(1.3)'},
+  {id:'hachiware',   name:'ハチワレねこ',             emoji:'😹', rarity:'common', rarityLabel:'コモン', cost:32, filter:'contrast(1.2)'},
+  // ===== アンコモン (新ティア) =====
+  {id:'chartreux',   name:'シャルトリュー',           emoji:'🐈', rarity:'uncommon', rarityLabel:'アンコモン', cost:48, filter:'hue-rotate(180deg) saturate(.7) brightness(1.1)'},
+  {id:'turkishangora', name:'ターキッシュアンゴラ',   emoji:'😻', rarity:'uncommon', rarityLabel:'アンコモン', cost:52, filter:'brightness(1.3) saturate(.6)'},
+  {id:'himalayan',   name:'ヒマラヤン',               emoji:'😽', rarity:'uncommon', rarityLabel:'アンコモン', cost:55, filter:'hue-rotate(200deg) brightness(1.2)'},
+  {id:'persian',     name:'ペルシャ',                 emoji:'🙀', rarity:'uncommon', rarityLabel:'アンコモン', cost:58, filter:'hue-rotate(300deg) saturate(.8)'},
+  {id:'oriental',    name:'オリエンタルショートヘア',  emoji:'😿', rarity:'uncommon', rarityLabel:'アンコモン', cost:62, filter:'hue-rotate(90deg)'},
+  {id:'cornishrex',  name:'コーニッシュレックス',      emoji:'😾', rarity:'uncommon', rarityLabel:'アンコモン', cost:65, filter:'hue-rotate(40deg) saturate(1.4)'},
+  {id:'somali',      name:'ソマリ',                   emoji:'🦊', rarity:'uncommon', rarityLabel:'アンコモン', cost:68, filter:'hue-rotate(20deg)'},
+  {id:'korat',       name:'コラット',                 emoji:'🐈‍⬛', rarity:'uncommon', rarityLabel:'アンコモン', cost:72, filter:'hue-rotate(220deg) brightness(1.1)'},
+  // ===== レア (もとからいる子たち) =====
   {id:'scottish',    name:'スコティッシュ・フォールド', emoji:'😻', rarity:'rare',  rarityLabel:'レア',         cost:90},
   {id:'ragdoll',     name:'ラグドール',               emoji:'😽', rarity:'rare',  rarityLabel:'レア',         cost:100},
   {id:'abyssinian',  name:'アビシニアン',             emoji:'🙀', rarity:'rare',  rarityLabel:'レア',         cost:110},
   {id:'tonkinese',   name:'トンキニーズ',             emoji:'😿', rarity:'rare',  rarityLabel:'レア',         cost:120},
-  // スーパーレア
+  // ===== レア 新入り =====
+  {id:'ocicat',      name:'オシキャット',             emoji:'🐆', rarity:'rare', rarityLabel:'レア', cost:95, filter:'hue-rotate(40deg)'},
+  {id:'devonrex',    name:'デボンレックス',           emoji:'😼', rarity:'rare', rarityLabel:'レア', cost:105, filter:'hue-rotate(150deg)'},
+  {id:'selkirk',     name:'セルカークレックス',        emoji:'🐱', rarity:'rare', rarityLabel:'レア', cost:115, filter:'contrast(1.3) hue-rotate(60deg)'},
+  {id:'havana',      name:'ハバナブラウン',           emoji:'🐈', rarity:'rare', rarityLabel:'レア', cost:125, filter:'sepia(.6) hue-rotate(-20deg)'},
+  {id:'bombay',      name:'ボンベイ',                 emoji:'🐈‍⬛', rarity:'rare', rarityLabel:'レア', cost:135, filter:'brightness(.6)'},
+  {id:'balinese',    name:'バリニーズ',               emoji:'😻', rarity:'rare', rarityLabel:'レア', cost:145, filter:'hue-rotate(250deg)'},
+  // ===== スーパーレア (もとからいる子たち) =====
   {id:'mainecoon',   name:'メインクーン',             emoji:'🦁', rarity:'super', rarityLabel:'スーパーレア', cost:220},
   {id:'bengal',      name:'ベンガル',                 emoji:'🐆', rarity:'super', rarityLabel:'スーパーレア', cost:230},
   {id:'norwegian',   name:'ノルウェージャンフォレストキャット', emoji:'🦊', rarity:'super', rarityLabel:'スーパーレア', cost:240},
   {id:'siberian',    name:'サイベリアン',             emoji:'🐅', rarity:'super', rarityLabel:'スーパーレア', cost:250},
-  // ウルトラレア
+  // ===== スーパーレア 新入り =====
+  {id:'pixiebob',    name:'ピクシーボブ',             emoji:'🐆', rarity:'super', rarityLabel:'スーパーレア', cost:190, filter:'hue-rotate(100deg) contrast(1.2)'},
+  {id:'americancurl', name:'アメリカンカール',        emoji:'😺', rarity:'super', rarityLabel:'スーパーレア', cost:205, filter:'hue-rotate(280deg)'},
+  {id:'egyptianmau', name:'エジプシャンマウ',          emoji:'🐆', rarity:'super', rarityLabel:'スーパーレア', cost:220, filter:'hue-rotate(200deg) saturate(1.3)'},
+  {id:'khaomanee',   name:'カオマニー',               emoji:'😸', rarity:'super', rarityLabel:'スーパーレア', cost:235, filter:'brightness(1.4) saturate(.5)'},
+  {id:'lykoi',       name:'ライコイ',                 emoji:'🐺', rarity:'super', rarityLabel:'スーパーレア', cost:250, filter:'grayscale(.5)'},
+  {id:'chausie',     name:'チャウジー',               emoji:'🐅', rarity:'super', rarityLabel:'スーパーレア', cost:265, filter:'hue-rotate(160deg)'},
+  // ===== ウルトラレア (もとからいる子たち) =====
   {id:'singapura',   name:'シンガプーラ',             emoji:'🦄', rarity:'ultra', rarityLabel:'ウルトラレア', cost:480},
   {id:'sphynx',      name:'スフィンクス',             emoji:'👽', rarity:'ultra', rarityLabel:'ウルトラレア', cost:520},
   {id:'savannah',    name:'サバンナ',                 emoji:'🐆', rarity:'ultra', rarityLabel:'ウルトラレア', cost:560},
   {id:'toyger',      name:'トイガー',                 emoji:'🐯', rarity:'ultra', rarityLabel:'ウルトラレア', cost:600},
+  // ===== ウルトラレア 新入り =====
+  {id:'caracal',     name:'カラカルキャット',         emoji:'🐆', rarity:'ultra', rarityLabel:'ウルトラレア', cost:420, filter:'hue-rotate(320deg) saturate(1.5)'},
+  {id:'serengeti',   name:'セレンゲティ',             emoji:'🐯', rarity:'ultra', rarityLabel:'ウルトラレア', cost:460, filter:'hue-rotate(80deg)'},
+  {id:'highlandlynx', name:'ハイランドリンクス',       emoji:'🦁', rarity:'ultra', rarityLabel:'ウルトラレア', cost:500, filter:'hue-rotate(200deg)'},
+  {id:'cheetoh',     name:'チートー',                 emoji:'🐆', rarity:'ultra', rarityLabel:'ウルトラレア', cost:540, filter:'contrast(1.4)'},
+  // ===== でんせつ (最高レア。あつめきったご褒美！) =====
+  {id:'fairycat',    name:'ようせいねこ',             emoji:'🧚', rarity:'legendary', rarityLabel:'でんせつ', cost:900},
+  {id:'dragoncat',   name:'ドラゴンねこ',             emoji:'🐉', rarity:'legendary', rarityLabel:'でんせつ', cost:1050},
+  {id:'starcat',     name:'ほしぞらねこ',             emoji:'🌟', rarity:'legendary', rarityLabel:'でんせつ', cost:1200},
+  {id:'goldencat',   name:'おうごんねこ',             emoji:'👑', rarity:'legendary', rarityLabel:'でんせつ', cost:1500},
 ];
 const AFFECTION_MILESTONES = [5, 15, 30];
+
+/* ---- achievements (実績・コレクション達成ごほうび) ---- */
+const ACHIEVEMENTS = [
+  {id:'zukan_common',    title:'図鑑コンプリート：コモン',       desc:'コモンのねこを全部あつめる',       reward:80,
+    condition: s => CAT_SPECIES.filter(c=>c.rarity==='common').every(c=>s.ownedSpecies[c.id])},
+  {id:'zukan_uncommon',  title:'図鑑コンプリート：アンコモン',   desc:'アンコモンのねこを全部あつめる',    reward:150,
+    condition: s => CAT_SPECIES.filter(c=>c.rarity==='uncommon').every(c=>s.ownedSpecies[c.id])},
+  {id:'zukan_rare',      title:'図鑑コンプリート：レア',         desc:'レアのねこを全部あつめる',          reward:250,
+    condition: s => CAT_SPECIES.filter(c=>c.rarity==='rare').every(c=>s.ownedSpecies[c.id])},
+  {id:'zukan_super',     title:'図鑑コンプリート：スーパーレア', desc:'スーパーレアのねこを全部あつめる',   reward:400,
+    condition: s => CAT_SPECIES.filter(c=>c.rarity==='super').every(c=>s.ownedSpecies[c.id])},
+  {id:'zukan_ultra',     title:'図鑑コンプリート：ウルトラレア', desc:'ウルトラレアのねこを全部あつめる',   reward:700,
+    condition: s => CAT_SPECIES.filter(c=>c.rarity==='ultra').every(c=>s.ownedSpecies[c.id])},
+  {id:'zukan_legendary', title:'図鑑コンプリート：でんせつ',     desc:'でんせつのねこを全部あつめる',       reward:1200,
+    condition: s => CAT_SPECIES.filter(c=>c.rarity==='legendary').every(c=>s.ownedSpecies[c.id])},
+  {id:'zukan_perfect',   title:'🏆パーフェクト図鑑',             desc:'すべてのねこをあつめきる',           reward:2000,
+    condition: s => CAT_SPECIES.every(c=>s.ownedSpecies[c.id])},
+  {id:'furniture_master', title:'かぐマスター',                  desc:'すべての種類のかぐを1つ以上置く',    reward:300,
+    condition: s => SHOP_ITEMS.every(i=>(s.ownedFurniture[i.id]||0) > 0)},
+  {id:'quiz_100', title:'クイズ100問達成',  desc:'あわせて100問こたえる', reward:80,  condition: s => s.totalAnswered >= 100},
+  {id:'quiz_300', title:'クイズ300問達成',  desc:'あわせて300問こたえる', reward:200, condition: s => s.totalAnswered >= 300},
+  {id:'quiz_500', title:'クイズ500問達成',  desc:'あわせて500問こたえる', reward:400, condition: s => s.totalAnswered >= 500},
+  {id:'affection_master', title:'なかよしマスター', desc:'5匹のねことなかよし度MAXになる', reward:250,
+    condition: s => Object.values(s.ownedSpecies).filter(o=>o.affection >= AFFECTION_MILESTONES[AFFECTION_MILESTONES.length-1]).length >= 5},
+];
+
+function checkAchievements(){
+  const unlocked = [];
+  ACHIEVEMENTS.forEach(a => {
+    if(state.achievements[a.id]) return;
+    if(a.condition(state)){
+      state.achievements[a.id] = true;
+      state.coins += a.reward;
+      unlocked.push(a);
+    }
+  });
+  if(unlocked.length){
+    document.getElementById('coinCount').textContent = state.coins;
+    unlocked.forEach(a => showToast(`🏆 実績解除「${a.title}」！ボーナス🐾+${a.reward}`));
+    renderAchievements();
+  }
+}
+
+function renderAchievements(){
+  const box = document.getElementById('achieveList');
+  if(!box) return;
+  box.innerHTML = '';
+  ACHIEVEMENTS.forEach(a => {
+    const done = !!state.achievements[a.id];
+    const div = document.createElement('div');
+    div.className = 'achieve-item' + (done ? '' : ' locked');
+    div.innerHTML = `
+      <div class="aicon">${done ? '🏆' : '🔒'}</div>
+      <div class="atext">
+        <div class="atitle">${a.title}</div>
+        <div class="adesc">${a.desc}</div>
+      </div>
+      <div class="areward">${done ? 'たっせい済み' : `🐾${a.reward}`}</div>
+    `;
+    box.appendChild(div);
+  });
+}
 
 /* ---- meow sound (synthesized, no external audio file needed) ---- */
 let audioCtx = null;
@@ -1190,6 +1318,7 @@ function buyFurniture(id){
   document.getElementById('coinCount').textContent = state.coins;
   renderShop();
   renderGarden();
+  checkAchievements();
   persistLocal();
 }
 
@@ -1217,6 +1346,7 @@ function welcomeSpecies(id){
   showToast(`${sp.name} が お庭に来たよ！「ニャー！」`);
   goTo('garden');
   setTimeout(() => spawnMeowEffectFor(id), 200);
+  checkAchievements();
   persistLocal();
 }
 
@@ -1225,15 +1355,15 @@ function renderCatalog(){
   box.innerHTML = '';
   CAT_SPECIES.forEach(sp => {
     const owned = state.ownedSpecies[sp.id];
-    const rarityClass = {common:'rarity-common', rare:'rarity-rare', super:'rarity-super', ultra:'rarity-ultra'}[sp.rarity];
-    const tagClass = {common:'common', rare:'rare', super:'super', ultra:'ultra'}[sp.rarity];
+    const rarityClass = {common:'rarity-common', uncommon:'rarity-uncommon', rare:'rarity-rare', super:'rarity-super', ultra:'rarity-ultra', legendary:'rarity-legendary'}[sp.rarity];
+    const tagClass = {common:'common', uncommon:'uncommon', rare:'rare', super:'super', ultra:'ultra', legendary:'legendary'}[sp.rarity];
     const div = document.createElement('div');
     div.className = 'centry ' + rarityClass + (owned ? '' : ' locked');
     if(owned && owned.affection >= AFFECTION_MILESTONES[AFFECTION_MILESTONES.length - 1]){
       div.innerHTML += '<span class="max-badge">⭐</span>';
     }
     div.innerHTML += `
-      <div class="emoji">${owned ? sp.emoji : '❓'}</div>
+      <div class="emoji" style="${owned && sp.filter ? `filter:${sp.filter};` : ''}">${owned ? sp.emoji : '❓'}</div>
       <div class="cname">${owned ? sp.name : '？？？'}</div>
       <span class="rarity-tag ${tagClass}">${sp.rarityLabel}</span>
       ${owned
@@ -1297,7 +1427,7 @@ function renderGarden(){
     d.style.animationDelay = (Math.random() * 6).toFixed(1) + 's';
     d.innerHTML = `
       <span class="catname">${sp.name}</span>
-      ${sp.emoji}
+      <span style="${sp.filter ? `filter:${sp.filter};` : ''}">${sp.emoji}</span>
       <span class="heart-badge">💗${owned.affection}</span>
       ${isMax ? '<span class="max-star">⭐</span>' : ''}
     `;
@@ -1353,16 +1483,16 @@ function petCat(speciesId, ev){
   owned.affection++;
 
   // occasional small coin bonus from petting
-  if(Math.random() < 0.2){
-    state.coins += 3;
+  if(Math.random() < 0.12){
+    state.coins += 2;
     document.getElementById('coinCount').textContent = state.coins;
-    showToast('なついてボーナス！🐾+3');
+    showToast('なついてボーナス！🐾+2');
   }
 
   // affection milestone rewards
   const nextMilestone = AFFECTION_MILESTONES.find(m => owned.affection === m);
   if(nextMilestone){
-    const bonus = nextMilestone * 2;
+    const bonus = nextMilestone;
     state.coins += bonus;
     document.getElementById('coinCount').textContent = state.coins;
     showToast(`${sp.name} のなかよし度アップ！ボーナス🐾+${bonus}`);
@@ -1370,6 +1500,7 @@ function petCat(speciesId, ev){
 
   renderGarden();
   renderCatalog();
+  checkAchievements();
   persistLocal();
 }
 
@@ -1441,6 +1572,7 @@ document.getElementById('loadInput').addEventListener('change', function(e){
       renderShop();
       renderCatalog();
       renderGarden();
+      renderAchievements();
       showToast('つづきから読みこみました！');
       persistLocal();
     }catch(err){
@@ -1462,7 +1594,7 @@ function goTo(page){
   const idx = map[page === 'result' ? 'quiz' : page];
   if(idx !== undefined) document.querySelectorAll('.tab-btn')[idx].classList.add('active');
   if(page === 'home') updateHomeStats();
-  if(page === 'garden'){ renderShop(); renderCatalog(); renderGarden(); }
+  if(page === 'garden'){ renderShop(); renderCatalog(); renderGarden(); renderAchievements(); }
 }
 
 let toastTimer = null;
@@ -1499,6 +1631,7 @@ updateHomeStats();
 renderShop();
 renderCatalog();
 renderGarden();
+renderAchievements();
 if(hadLocalSave) showToast('前回のつづきから読みこみました🐾');
 
 // safety-net autosave: also save periodically and right before the tab/app closes
