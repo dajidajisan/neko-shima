@@ -309,6 +309,15 @@ h2.section-title{
 .achieve-item .atitle{font-size:12.5px;font-weight:bold;color:var(--brown);}
 .achieve-item .adesc{font-size:11px;color:var(--brown-soft);}
 .achieve-item .areward{font-size:11px;color:var(--pink-text);font-weight:bold;white-space:nowrap;}
+
+/* ---------- fishing minigame ---------- */
+.fishing-area{
+  background:linear-gradient(180deg,#bfe9ff 0%,#8fd6f2 100%);
+  border-radius:18px;padding:26px 14px;text-align:center;margin-bottom:10px;
+  border:3px solid #fff;box-shadow:var(--shadow);position:relative;overflow:hidden;
+}
+.fishing-status{font-size:15px;font-weight:bold;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.15);transition:transform .15s;}
+.fishing-status.pop{transform:scale(1.12);}
 .cat-catalog .centry .heart-count{font-size:10px;color:var(--pink-text);margin-top:3px;font-weight:bold;}
 .cat-catalog .centry .max-badge{
   position:absolute;top:-6px;right:-4px;font-size:15px;
@@ -375,7 +384,7 @@ input[type=file]{font-family:inherit;font-size:12px;}
           <div class="fill" id="bookProgress" style="width:0%;"></div>
         </div>
         <p style="font-size:12px;color:var(--brown-soft);margin:0 0 14px;" id="bookProgressLabel">0 / 0 語</p>
-        <button class="btn" id="startQuizBtn" style="width:100%;">クイズをはじめる（10問）</button>
+        <button class="btn" id="startQuizBtn" style="width:100%;">クイズをはじめる（15問）</button>
       </div>
 
       <div class="card">
@@ -404,7 +413,7 @@ input[type=file]{font-family:inherit;font-size:12px;}
     <section id="page-quiz">
       <div class="card">
         <div class="qmeta">
-          <span id="quizProgressText">第1問 / 10問</span>
+          <span id="quizProgressText">第1問 / 15問</span>
           <span class="combo">🔥 コンボ <span id="comboNum">0</span></span>
         </div>
         <div class="qcount-dots" id="qDots"></div>
@@ -433,12 +442,12 @@ input[type=file]{font-family:inherit;font-size:12px;}
     <!-- ================= QUIZ RESULT ================= -->
     <section id="page-result">
       <div class="card center">
-        <h2 class="section-title" style="justify-content:center;">🎉 10問クリア！</h2>
+        <h2 class="section-title" style="justify-content:center;">🎉 <span id="resultBatchSizeTitle">15</span>問クリア！</h2>
         <p style="font-size:40px;margin:6px 0;">🐟🐟🐟</p>
-        <p style="font-size:15px;">今回は <b id="resultCorrect">0</b> / 10 問 せいかい！</p>
+        <p style="font-size:15px;">今回は <b id="resultCorrect">0</b> / <span id="resultBatchSizeTotal">15</span> 問 せいかい！</p>
         <p style="font-size:15px;margin-bottom:16px;">獲得した ねこコイン：<b id="resultCoins">0</b> 🐾</p>
         <div style="display:flex;gap:8px;flex-direction:column;">
-          <button class="btn" id="resultContinueBtn">もう10問つづける</button>
+          <button class="btn" id="resultContinueBtn">もう15問つづける</button>
           <button class="btn mint" id="resultGardenBtn">お庭に行く 🌷</button>
           <button class="btn-outline" id="resultHomeBtn">島マップにもどる</button>
         </div>
@@ -464,6 +473,15 @@ input[type=file]{font-family:inherit;font-size:12px;}
         <h2 class="section-title">😻 ねこ図鑑（コレクション）</h2>
         <p style="font-size:12px;color:var(--brown-soft);margin:0 0 10px;">レアなねこほど必要なねこコインが多いよ。集めてなかよくなろう！</p>
         <div class="cat-catalog" id="catCatalog"></div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">🎣 つりにいく</h2>
+        <p style="font-size:12px;color:var(--brown-soft);margin:0 0 10px;">魚がはねたしゅんかんにタップ！はやくタップできるほど、もらえるねこコインが多いよ。</p>
+        <div class="fishing-area" id="fishingArea">
+          <div class="fishing-status" id="fishingStatus">🌊 静かな海だよ…</div>
+        </div>
+        <button class="btn mint" id="fishingBtn" style="width:100%;">つりをはじめる</button>
       </div>
 
       <div class="card">
@@ -513,12 +531,15 @@ const DEFAULT_STATE = () => ({
   ownedSpecies: {},      // speciesId -> {affection: number, milestones: [5,15,...], x, y}
   nightMode: false,
   grammarIndex: 0,       // pointer into GRAMMAR_QUESTIONS for the 1-per-round grammar question
-  achievements: {}       // achievementId -> true (claimed)
+  achievements: {},      // achievementId -> true (claimed)
+  lastFishAt: 0,          // timestamp (ms) of the last fishing attempt, for cooldown
+  fishCount: 0            // total number of fish successfully caught
 });
 
 let state = DEFAULT_STATE();
 let vocab = [];          // [{word, meaning, idx}]
-let currentBatch = [];   // array of csvIndex for the current 10-question round
+const QUIZ_BATCH_SIZE = 15; // number of questions per round (was 10)
+let currentBatch = [];   // array of csvIndex for the current round
 let batchPos = 0;
 let batchCorrect = 0;
 let batchCoins = 0;
@@ -941,7 +962,7 @@ function renderChoices(){
 /* ---------------------------------------------------------------------
    5. QUIZ FLOW
 --------------------------------------------------------------------- */
-let batchGrammarSlot = -1; // which of the 10 questions this round is a grammar question (0-9)
+let batchGrammarSlot = -1; // which question in this round is a grammar question
 
 function startNewBatch(){
   if(vocab.length === 0){
@@ -952,7 +973,7 @@ function startNewBatch(){
   batchPos = 0;
   batchCorrect = 0;
   batchCoins = 0;
-  batchGrammarSlot = GRAMMAR_QUESTIONS.length ? Math.floor(Math.random() * 10) : -1;
+  batchGrammarSlot = GRAMMAR_QUESTIONS.length ? Math.floor(Math.random() * QUIZ_BATCH_SIZE) : -1;
   goTo('quiz');
   loadNextQuestion();
 }
@@ -990,7 +1011,7 @@ function nextGrammarEntry(){
 }
 
 function loadNextQuestion(){
-  if(batchPos >= 10){
+  if(batchPos >= QUIZ_BATCH_SIZE){
     finishBatch();
     return;
   }
@@ -1021,7 +1042,7 @@ function loadNextQuestion(){
   document.getElementById('submitBtn').style.display = 'block';
   document.getElementById('nextBtn').style.display = 'none';
   document.getElementById('feedbackArea').innerHTML = '';
-  document.getElementById('quizProgressText').textContent = `第${batchPos+1}問 / 10問`;
+  document.getElementById('quizProgressText').textContent = `第${batchPos+1}問 / ${QUIZ_BATCH_SIZE}問`;
   document.getElementById('comboNum').textContent = state.combo;
   renderDots();
   setTimeout(()=>{ document.getElementById('answerInput').focus(); speakCurrentQuestion(); }, 250);
@@ -1030,7 +1051,7 @@ function loadNextQuestion(){
 function renderDots(){
   const dots = document.getElementById('qDots');
   dots.innerHTML = '';
-  for(let i=0;i<10;i++){
+  for(let i=0;i<QUIZ_BATCH_SIZE;i++){
     const s = document.createElement('span');
     if(i < batchPos) s.className = 'done';
     else if(i === batchPos) s.className = 'cur';
@@ -1104,6 +1125,8 @@ function showCombo(){
 function finishBatch(){
   document.getElementById('resultCorrect').textContent = batchCorrect;
   document.getElementById('resultCoins').textContent = batchCoins;
+  document.getElementById('resultBatchSizeTitle').textContent = QUIZ_BATCH_SIZE;
+  document.getElementById('resultBatchSizeTotal').textContent = QUIZ_BATCH_SIZE;
   goTo('result');
   updateHomeStats();
 }
@@ -1221,6 +1244,8 @@ const ACHIEVEMENTS = [
   {id:'quiz_500', title:'クイズ500問達成',  desc:'あわせて500問こたえる', reward:400, condition: s => s.totalAnswered >= 500},
   {id:'affection_master', title:'なかよしマスター', desc:'5匹のねことなかよし度MAXになる', reward:250,
     condition: s => Object.values(s.ownedSpecies).filter(o=>o.affection >= AFFECTION_MILESTONES[AFFECTION_MILESTONES.length-1]).length >= 5},
+  {id:'fishing_master', title:'つり名人', desc:'おさかなを20回つる', reward:150,
+    condition: s => (s.fishCount||0) >= 20},
 ];
 
 function checkAchievements(){
@@ -1506,6 +1531,101 @@ function petCat(speciesId, ev){
 
 function pick2(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
 
+/* ---------------------------------------------------------------------
+   6b. FISHING MINIGAME (🎣 つり) - earn a small amount of bonus coins
+   by tapping right when the fish bites. Cooldown-limited so it can't
+   be spammed for infinite coins.
+--------------------------------------------------------------------- */
+const FISH_COOLDOWN_MS = 45000; // 45 seconds between attempts
+let fishingState = 'idle';      // idle | waiting | ready
+let fishingTimer = null;
+let fishingReadyAt = 0;
+
+function fishingCooldownRemaining(){
+  return FISH_COOLDOWN_MS - (Date.now() - (state.lastFishAt || 0));
+}
+
+function updateFishingButton(){
+  const btn = document.getElementById('fishingBtn');
+  const status = document.getElementById('fishingStatus');
+  if(!btn || !status || fishingState !== 'idle') return;
+  const remain = fishingCooldownRemaining();
+  if(remain > 0){
+    btn.disabled = true;
+    btn.textContent = `つぎまで ${Math.ceil(remain/1000)}びょう`;
+    status.textContent = '🌊 つりざおがやすんでいるよ…';
+    status.classList.remove('pop');
+    setTimeout(updateFishingButton, 1000);
+  } else {
+    btn.disabled = false;
+    btn.textContent = 'つりをはじめる';
+    status.textContent = '🌊 静かな海だよ…';
+  }
+}
+
+function startFishing(){
+  if(fishingState !== 'idle') return;
+  if(fishingCooldownRemaining() > 0){
+    showToast('つりざおがまだつかれてるよ🎣');
+    return;
+  }
+  fishingState = 'waiting';
+  const btn = document.getElementById('fishingBtn');
+  const status = document.getElementById('fishingStatus');
+  btn.disabled = false;
+  btn.textContent = 'まだまだ…';
+  status.textContent = '🎣 いとをたらした…まってて';
+  status.classList.remove('pop');
+  const delay = 1200 + Math.random() * 2600;
+  fishingTimer = setTimeout(() => {
+    if(fishingState !== 'waiting') return;
+    fishingState = 'ready';
+    fishingReadyAt = Date.now();
+    status.textContent = '🐟 今だ！タップ！';
+    status.classList.add('pop');
+    btn.textContent = 'エイヤ！';
+    fishingTimer = setTimeout(() => {
+      if(fishingState === 'ready') fishMiss(false);
+    }, 900);
+  }, delay);
+}
+
+function handleFishingClick(){
+  if(fishingState === 'idle'){ startFishing(); return; }
+  if(fishingState === 'waiting'){ clearTimeout(fishingTimer); fishMiss(true); return; }
+  if(fishingState === 'ready'){
+    clearTimeout(fishingTimer);
+    fishCatch(Date.now() - fishingReadyAt);
+  }
+}
+
+function fishCatch(reactionMs){
+  const bonus = reactionMs < 300 ? 15 : reactionMs < 550 ? 10 : 6;
+  state.coins += bonus;
+  state.fishCount = (state.fishCount || 0) + 1;
+  state.lastFishAt = Date.now();
+  document.getElementById('coinCount').textContent = state.coins;
+  document.getElementById('fishingStatus').textContent = `🎉 つれた！ねこコイン+${bonus}`;
+  document.getElementById('fishingStatus').classList.remove('pop');
+  fishingState = 'idle';
+  showToast(`おさかなをつったよ！🐾+${bonus}`);
+  checkAchievements();
+  persistLocal();
+  updateFishingButton();
+}
+
+function fishMiss(early){
+  state.lastFishAt = Date.now();
+  const status = document.getElementById('fishingStatus');
+  status.textContent = early ? '😿 まだだよ…にげられた' : '😿 にげられちゃった…';
+  status.classList.remove('pop');
+  fishingState = 'idle';
+  persistLocal();
+  updateFishingButton();
+}
+
+document.getElementById('fishingBtn').addEventListener('click', handleFishingClick);
+
 document.getElementById('toggleNightBtn').addEventListener('click', () => {
   state.nightMode = !state.nightMode;
   document.getElementById('toggleNightBtn').textContent = state.nightMode ? '☀️ 昼にする' : '🌙 夜にする';
@@ -1594,7 +1714,7 @@ function goTo(page){
   const idx = map[page === 'result' ? 'quiz' : page];
   if(idx !== undefined) document.querySelectorAll('.tab-btn')[idx].classList.add('active');
   if(page === 'home') updateHomeStats();
-  if(page === 'garden'){ renderShop(); renderCatalog(); renderGarden(); renderAchievements(); }
+  if(page === 'garden'){ renderShop(); renderCatalog(); renderGarden(); renderAchievements(); updateFishingButton(); }
 }
 
 let toastTimer = null;
@@ -1632,6 +1752,7 @@ renderShop();
 renderCatalog();
 renderGarden();
 renderAchievements();
+updateFishingButton();
 if(hadLocalSave) showToast('前回のつづきから読みこみました🐾');
 
 // safety-net autosave: also save periodically and right before the tab/app closes
