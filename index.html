@@ -215,6 +215,8 @@ h2.section-title{
 }
 .garden-plot .fitem{position:absolute;font-size:34px;filter:drop-shadow(0 3px 0 rgba(0,0,0,.08));}
 .garden-plot .gcat{position:absolute;font-size:28px;animation:wander 14s ease-in-out infinite;}
+.cat-icon-garden{display:inline-block;filter:drop-shadow(0 3px 0 rgba(0,0,0,.08));}
+.cat-icon-garden svg{display:block;}
 @keyframes wander{
   0%{transform:translate(0,0);}
   25%{transform:translate(30px,-10px);}
@@ -287,7 +289,8 @@ h2.section-title{
   background:linear-gradient(135deg,#fff,#f5ecff);
 }
 .cat-catalog .centry.locked{filter:grayscale(1);opacity:.55;}
-.cat-catalog .centry .emoji{font-size:26px;}
+.cat-catalog .centry .cat-icon{width:48px;height:48px;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:26px;}
+.cat-catalog .centry .cat-icon svg{display:block;}
 .cat-catalog .centry .cname{font-size:11px;font-weight:bold;margin-top:2px;}
 .cat-catalog .centry .rarity-tag{
   font-size:9px;color:#fff;border-radius:8px;padding:1px 6px;display:inline-block;margin-top:3px;
@@ -310,14 +313,19 @@ h2.section-title{
 .achieve-item .adesc{font-size:11px;color:var(--brown-soft);}
 .achieve-item .areward{font-size:11px;color:var(--pink-text);font-weight:bold;white-space:nowrap;}
 
-/* ---------- fishing minigame ---------- */
-.fishing-area{
-  background:linear-gradient(180deg,#bfe9ff 0%,#8fd6f2 100%);
-  border-radius:18px;padding:26px 14px;text-align:center;margin-bottom:10px;
-  border:3px solid #fff;box-shadow:var(--shadow);position:relative;overflow:hidden;
+/* ---------- ねこインベーダー minigame ---------- */
+.invader-wrap{
+  position:relative;border-radius:18px;overflow:hidden;
+  border:3px solid #fff;box-shadow:var(--shadow);margin-bottom:10px;
+  background:linear-gradient(180deg,#dff3ff,#eafcff);
 }
-.fishing-status{font-size:15px;font-weight:bold;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.15);transition:transform .15s;}
-.fishing-status.pop{transform:scale(1.12);}
+#invaderCanvas{display:block;width:100%;height:auto;touch-action:none;}
+.invader-hud{
+  display:flex;justify-content:space-between;padding:6px 12px;
+  font-size:12px;color:var(--brown);background:rgba(255,255,255,.75);font-weight:bold;
+}
+.invader-controls{display:flex;gap:8px;justify-content:center;margin-bottom:8px;}
+.invader-controls button{min-width:64px;user-select:none;}
 .cat-catalog .centry .heart-count{font-size:10px;color:var(--pink-text);margin-top:3px;font-weight:bold;}
 .cat-catalog .centry .max-badge{
   position:absolute;top:-6px;right:-4px;font-size:15px;
@@ -476,12 +484,21 @@ input[type=file]{font-family:inherit;font-size:12px;}
       </div>
 
       <div class="card">
-        <h2 class="section-title">🎣 つりにいく</h2>
-        <p style="font-size:12px;color:var(--brown-soft);margin:0 0 10px;">魚がはねたしゅんかんにタップ！はやくタップできるほど、もらえるねこコインが多いよ。</p>
-        <div class="fishing-area" id="fishingArea">
-          <div class="fishing-status" id="fishingStatus">🌊 静かな海だよ…</div>
+        <h2 class="section-title">👾 ねこインベーダー</h2>
+        <p style="font-size:12px;color:var(--brown-soft);margin:0 0 10px;">下りてくるねずみさんたちを毛糸玉でたいじしよう！たおすとねこコインがもらえるよ。</p>
+        <div class="invader-wrap">
+          <canvas id="invaderCanvas" width="300" height="340"></canvas>
+          <div class="invader-hud">
+            <span>スコア：<b id="invaderScore">0</b></span>
+            <span>ライフ：<b id="invaderLives">3</b></span>
+          </div>
         </div>
-        <button class="btn mint" id="fishingBtn" style="width:100%;">つりをはじめる</button>
+        <div class="invader-controls">
+          <button class="btn-outline" id="invaderLeftBtn">◀</button>
+          <button class="btn mint" id="invaderShootBtn">🧶 うつ</button>
+          <button class="btn-outline" id="invaderRightBtn">▶</button>
+        </div>
+        <button class="btn" id="invaderStartBtn" style="width:100%;">ゲームスタート</button>
       </div>
 
       <div class="card">
@@ -532,8 +549,8 @@ const DEFAULT_STATE = () => ({
   nightMode: false,
   grammarIndex: 0,       // pointer into GRAMMAR_QUESTIONS for the 1-per-round grammar question
   achievements: {},      // achievementId -> true (claimed)
-  lastFishAt: 0,          // timestamp (ms) of the last fishing attempt, for cooldown
-  fishCount: 0            // total number of fish successfully caught
+  invaderKills: 0,         // total mice defeated in ねこインベーダー across all plays
+  invaderHighScore: 0      // best single-game score in ねこインベーダー
 });
 
 let state = DEFAULT_STATE();
@@ -1153,71 +1170,203 @@ const SHOP_ITEMS = [
   {id:'koinobori', name:'こいのぼり', emoji:'🎏', cost:26},
 ];
 
-// each species has its own picture (emoji-based illustration), rarity and coin cost.
-// higher rarity = higher cost.
+/* ---- illustrated cat generator (replaces plain emoji) -----------------
+   Draws a cute, consistent, front-facing sitting cat as inline SVG, with
+   the coat colour/pattern/ear-shape/eye-colour/accessory parameterised
+   per breed so every species actually looks distinct on purpose, rather
+   than being the same emoji re-tinted with a CSS filter. */
+function catSVG(look, size){
+  look = look || {};
+  const coat = look.coat || '#f0b482';
+  const mark = look.mark || '#d98f57';
+  const eye = look.eye || '#6b8e4e';
+  const pattern = look.pattern || 'solid';
+  const earStyle = look.ears || 'pointy';
+  const accessory = look.accessory || null;
+
+  let ears;
+  if(earStyle === 'fold'){
+    ears = `<path d="M28,30 Q22,17 31,14 Q35,21 33,30 Z" fill="${coat}"/><path d="M72,30 Q78,17 69,14 Q65,21 67,30 Z" fill="${coat}"/>`;
+  } else if(earStyle === 'curl'){
+    ears = `<path d="M27,32 Q13,23 20,9 Q29,13 32,28 Z" fill="${coat}"/><path d="M73,32 Q87,23 80,9 Q71,13 68,28 Z" fill="${coat}"/>`;
+  } else {
+    ears = `<path d="M25,32 L17,7 L36,26 Z" fill="${coat}"/><path d="M75,32 L83,7 L64,26 Z" fill="${coat}"/>`;
+  }
+  const innerEars = `<path d="M28,27 L23,14 L33,24 Z" fill="#ffd7e6"/><path d="M72,27 L77,14 L67,24 Z" fill="#ffd7e6"/>`;
+
+  let patternMarkup = '';
+  if(pattern === 'tabby'){
+    patternMarkup = `
+      <path d="M40,19 Q50,13 60,19" stroke="${mark}" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M29,50 Q50,43 71,50" stroke="${mark}" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M30,63 Q50,58 70,63" stroke="${mark}" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+  } else if(pattern === 'spots'){
+    patternMarkup = `
+      <ellipse cx="34" cy="55" rx="4" ry="3" fill="${mark}"/>
+      <ellipse cx="61" cy="49" rx="5" ry="4" fill="${mark}"/>
+      <ellipse cx="45" cy="69" rx="4" ry="3" fill="${mark}"/>
+      <ellipse cx="66" cy="66" rx="3" ry="3" fill="${mark}"/>
+      <ellipse cx="38" cy="40" rx="2.4" ry="2" fill="${mark}"/>`;
+  } else if(pattern === 'colorpoint'){
+    patternMarkup = `
+      <path d="M25,32 L17,7 L36,26 Z" fill="${mark}"/><path d="M75,32 L83,7 L64,26 Z" fill="${mark}"/>
+      <ellipse cx="50" cy="44" rx="11" ry="7" fill="${mark}" opacity=".88"/>`;
+  } else if(pattern === 'bicolor' || pattern === 'tuxedo'){
+    patternMarkup = `<path d="M39,55 Q50,50 61,55 L59,80 Q50,84 41,80 Z" fill="#ffffff"/>`;
+  }
+
+  let accessoryBack = '', accessoryFront = '';
+  if(accessory === 'wings'){
+    accessoryBack = `<path d="M20,46 Q1,35 8,57 Q17,61 27,52 Z" fill="#fff" opacity=".9"/><path d="M80,46 Q99,35 92,57 Q83,61 73,52 Z" fill="#fff" opacity=".9"/>`;
+  } else if(accessory === 'sparkle'){
+    accessoryFront = `<text x="10" y="22" font-size="11">✨</text><text x="80" y="18" font-size="9">✨</text><text x="80" y="72" font-size="10">✨</text>`;
+  } else if(accessory === 'crown'){
+    accessoryFront = `<path d="M37,11 L41,2 L50,9 L59,2 L63,11 L61,18 L39,18 Z" fill="#ffd75e" stroke="#e0a92a" stroke-width="1"/>`;
+  } else if(accessory === 'halo'){
+    accessoryFront = `<ellipse cx="50" cy="4" rx="14" ry="4" fill="none" stroke="#ffe08a" stroke-width="3"/>`;
+  }
+
+  return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+    ${accessoryBack}
+    <path d="M35,58 Q19,70 25,87 Q29,91 34,87 Q30,72 42,64 Z" fill="${coat}"/>
+    ${ears}
+    <ellipse cx="50" cy="67" rx="27" ry="22" fill="${coat}"/>
+    ${patternMarkup}
+    <circle cx="50" cy="40" r="23" fill="${coat}"/>
+    ${innerEars}
+    <ellipse cx="41" cy="38" rx="4.6" ry="5.6" fill="${eye}"/>
+    <ellipse cx="59" cy="38" rx="4.6" ry="5.6" fill="${eye}"/>
+    <circle cx="42.6" cy="35.8" r="1.3" fill="#fff"/>
+    <circle cx="60.6" cy="35.8" r="1.3" fill="#fff"/>
+    <path d="M47.5,46 L52.5,46 L50,49.3 Z" fill="#ff9fc4"/>
+    <path d="M50,49.3 Q46,53.5 41.5,50.3" stroke="#7a5c50" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+    <path d="M50,49.3 Q54,53.5 58.5,50.3" stroke="#7a5c50" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+    <line x1="12" y1="41" x2="27" y2="43" stroke="#fff" stroke-width="1" opacity=".65"/>
+    <line x1="12" y1="48" x2="27" y2="47" stroke="#fff" stroke-width="1" opacity=".65"/>
+    <line x1="88" y1="41" x2="73" y2="43" stroke="#fff" stroke-width="1" opacity=".65"/>
+    <line x1="88" y1="48" x2="73" y2="47" stroke="#fff" stroke-width="1" opacity=".65"/>
+    ${accessoryFront}
+  </svg>`;
+}
+
+// each species has its own hand-tuned SVG illustration (coat colour/pattern/
+// ear-shape/eye-colour, based on the real breed's colouring), rarity and
+// coin cost. Higher rarity = higher cost.
 const CAT_SPECIES = [
   // ===== コモン (もとからいる子たち。IDや値段は変更しません) =====
-  {id:'munchkin',    name:'マンチカン',              emoji:'🐱', rarity:'common', rarityLabel:'コモン',       cost:20},
-  {id:'amishort',    name:'アメリカンショートヘア',    emoji:'🐈', rarity:'common', rarityLabel:'コモン',       cost:20},
-  {id:'russianblue', name:'ロシアンブルー',           emoji:'🐈‍⬛', rarity:'common', rarityLabel:'コモン',     cost:25},
-  {id:'british',     name:'ブリティッシュショートヘア', emoji:'😺', rarity:'common', rarityLabel:'コモン',      cost:25},
-  {id:'bobtail',     name:'ジャパニーズボブテイル',    emoji:'😸', rarity:'common', rarityLabel:'コモン',       cost:30},
-  {id:'exotic',      name:'エキゾチックショートヘア',  emoji:'😹', rarity:'common', rarityLabel:'コモン',       cost:30},
+  {id:'munchkin',    name:'マンチカン',              rarity:'common', rarityLabel:'コモン', cost:20,
+    look:{coat:'#f0a868', mark:'#c97a3c', pattern:'tabby', eye:'#6b8e4e'}},
+  {id:'amishort',    name:'アメリカンショートヘア',    rarity:'common', rarityLabel:'コモン', cost:20,
+    look:{coat:'#c9c9c9', mark:'#8a8a8a', pattern:'tabby', eye:'#6b8e4e'}},
+  {id:'russianblue', name:'ロシアンブルー',           rarity:'common', rarityLabel:'コモン', cost:25,
+    look:{coat:'#8fa3ad', pattern:'solid', eye:'#7fd858'}},
+  {id:'british',     name:'ブリティッシュショートヘア', rarity:'common', rarityLabel:'コモン', cost:25,
+    look:{coat:'#9db3bd', pattern:'solid', eye:'#e8a23c'}},
+  {id:'bobtail',     name:'ジャパニーズボブテイル',    rarity:'common', rarityLabel:'コモン', cost:30,
+    look:{coat:'#f2e2c4', pattern:'bicolor', eye:'#5a8f4e'}},
+  {id:'exotic',      name:'エキゾチックショートヘア',  rarity:'common', rarityLabel:'コモン', cost:30,
+    look:{coat:'#f5d9a8', pattern:'solid', eye:'#caa15a'}},
   // ===== コモン 新入り =====
-  {id:'kijitora',    name:'キジトラねこ',             emoji:'🐱', rarity:'common', rarityLabel:'コモン', cost:18, filter:'hue-rotate(20deg) saturate(1.3)'},
-  {id:'sabineko',    name:'サビねこ',                 emoji:'🐈', rarity:'common', rarityLabel:'コモン', cost:22, filter:'grayscale(.3) brightness(.9)'},
-  {id:'mikeneko',    name:'みけねこ',                 emoji:'😺', rarity:'common', rarityLabel:'コモン', cost:24, filter:'saturate(1.5)'},
-  {id:'kuroneko',    name:'くろねこ',                 emoji:'🐈‍⬛', rarity:'common', rarityLabel:'コモン', cost:26, filter:'brightness(.7)'},
-  {id:'shironeko',   name:'しろねこ',                 emoji:'😸', rarity:'common', rarityLabel:'コモン', cost:28, filter:'grayscale(1) brightness(1.3)'},
-  {id:'hachiware',   name:'ハチワレねこ',             emoji:'😹', rarity:'common', rarityLabel:'コモン', cost:32, filter:'contrast(1.2)'},
+  {id:'kijitora',    name:'キジトラねこ', rarity:'common', rarityLabel:'コモン', cost:18,
+    look:{coat:'#c98a4a', mark:'#8a5a2a', pattern:'tabby', eye:'#e0a83c'}},
+  {id:'sabineko',    name:'サビねこ',    rarity:'common', rarityLabel:'コモン', cost:22,
+    look:{coat:'#9a9a8a', mark:'#5f5f52', pattern:'tabby', eye:'#e0a83c'}},
+  {id:'mikeneko',    name:'みけねこ',    rarity:'common', rarityLabel:'コモン', cost:24,
+    look:{coat:'#e88a3c', pattern:'bicolor', eye:'#4a7a3a'}},
+  {id:'kuroneko',    name:'くろねこ',    rarity:'common', rarityLabel:'コモン', cost:26,
+    look:{coat:'#2b2622', pattern:'solid', eye:'#e0c23c'}},
+  {id:'shironeko',   name:'しろねこ',    rarity:'common', rarityLabel:'コモン', cost:28,
+    look:{coat:'#fbfbf6', pattern:'solid', eye:'#7fb8d8'}},
+  {id:'hachiware',   name:'ハチワレねこ', rarity:'common', rarityLabel:'コモン', cost:32,
+    look:{coat:'#2b2622', pattern:'tuxedo', eye:'#e0c23c'}},
   // ===== アンコモン (新ティア) =====
-  {id:'chartreux',   name:'シャルトリュー',           emoji:'🐈', rarity:'uncommon', rarityLabel:'アンコモン', cost:48, filter:'hue-rotate(180deg) saturate(.7) brightness(1.1)'},
-  {id:'turkishangora', name:'ターキッシュアンゴラ',   emoji:'😻', rarity:'uncommon', rarityLabel:'アンコモン', cost:52, filter:'brightness(1.3) saturate(.6)'},
-  {id:'himalayan',   name:'ヒマラヤン',               emoji:'😽', rarity:'uncommon', rarityLabel:'アンコモン', cost:55, filter:'hue-rotate(200deg) brightness(1.2)'},
-  {id:'persian',     name:'ペルシャ',                 emoji:'🙀', rarity:'uncommon', rarityLabel:'アンコモン', cost:58, filter:'hue-rotate(300deg) saturate(.8)'},
-  {id:'oriental',    name:'オリエンタルショートヘア',  emoji:'😿', rarity:'uncommon', rarityLabel:'アンコモン', cost:62, filter:'hue-rotate(90deg)'},
-  {id:'cornishrex',  name:'コーニッシュレックス',      emoji:'😾', rarity:'uncommon', rarityLabel:'アンコモン', cost:65, filter:'hue-rotate(40deg) saturate(1.4)'},
-  {id:'somali',      name:'ソマリ',                   emoji:'🦊', rarity:'uncommon', rarityLabel:'アンコモン', cost:68, filter:'hue-rotate(20deg)'},
-  {id:'korat',       name:'コラット',                 emoji:'🐈‍⬛', rarity:'uncommon', rarityLabel:'アンコモン', cost:72, filter:'hue-rotate(220deg) brightness(1.1)'},
+  {id:'chartreux',   name:'シャルトリュー',    rarity:'uncommon', rarityLabel:'アンコモン', cost:48,
+    look:{coat:'#a8bcc4', pattern:'solid', eye:'#e0a23c'}},
+  {id:'turkishangora', name:'ターキッシュアンゴラ', rarity:'uncommon', rarityLabel:'アンコモン', cost:52,
+    look:{coat:'#fefefa', pattern:'solid', eye:'#d8845a'}},
+  {id:'himalayan',   name:'ヒマラヤン',        rarity:'uncommon', rarityLabel:'アンコモン', cost:55,
+    look:{coat:'#f5e9d6', mark:'#7a5540', pattern:'colorpoint', eye:'#6fb8e0'}},
+  {id:'persian',     name:'ペルシャ',          rarity:'uncommon', rarityLabel:'アンコモン', cost:58,
+    look:{coat:'#f2dcae', pattern:'solid', eye:'#d88a3c'}},
+  {id:'oriental',    name:'オリエンタルショートヘア', rarity:'uncommon', rarityLabel:'アンコモン', cost:62,
+    look:{coat:'#7a4a34', pattern:'solid', eye:'#7fd858'}},
+  {id:'cornishrex',  name:'コーニッシュレックス', rarity:'uncommon', rarityLabel:'アンコモン', cost:65,
+    look:{coat:'#d9b98a', pattern:'solid', eye:'#e0a83c', ears:'curl'}},
+  {id:'somali',      name:'ソマリ',            rarity:'uncommon', rarityLabel:'アンコモン', cost:68,
+    look:{coat:'#c9702f', mark:'#8a4a1e', pattern:'tabby', eye:'#e0a83c'}},
+  {id:'korat',       name:'コラット',          rarity:'uncommon', rarityLabel:'アンコモン', cost:72,
+    look:{coat:'#9aa8ab', pattern:'solid', eye:'#8fd858'}},
   // ===== レア (もとからいる子たち) =====
-  {id:'scottish',    name:'スコティッシュ・フォールド', emoji:'😻', rarity:'rare',  rarityLabel:'レア',         cost:90},
-  {id:'ragdoll',     name:'ラグドール',               emoji:'😽', rarity:'rare',  rarityLabel:'レア',         cost:100},
-  {id:'abyssinian',  name:'アビシニアン',             emoji:'🙀', rarity:'rare',  rarityLabel:'レア',         cost:110},
-  {id:'tonkinese',   name:'トンキニーズ',             emoji:'😿', rarity:'rare',  rarityLabel:'レア',         cost:120},
+  {id:'scottish',    name:'スコティッシュ・フォールド', rarity:'rare',  rarityLabel:'レア', cost:90,
+    look:{coat:'#b7b7ad', mark:'#7a7a70', pattern:'tabby', eye:'#e0a83c', ears:'fold'}},
+  {id:'ragdoll',     name:'ラグドール',        rarity:'rare',  rarityLabel:'レア', cost:100,
+    look:{coat:'#eef1f3', mark:'#6f8a9c', pattern:'colorpoint', eye:'#6fb8e0'}},
+  {id:'abyssinian',  name:'アビシニアン',      rarity:'rare',  rarityLabel:'レア', cost:110,
+    look:{coat:'#c9853f', mark:'#8a5a28', pattern:'tabby', eye:'#8fd858'}},
+  {id:'tonkinese',   name:'トンキニーズ',      rarity:'rare',  rarityLabel:'レア', cost:120,
+    look:{coat:'#cfa06a', mark:'#7a5030', pattern:'colorpoint', eye:'#7fd8c0'}},
   // ===== レア 新入り =====
-  {id:'ocicat',      name:'オシキャット',             emoji:'🐆', rarity:'rare', rarityLabel:'レア', cost:95, filter:'hue-rotate(40deg)'},
-  {id:'devonrex',    name:'デボンレックス',           emoji:'😼', rarity:'rare', rarityLabel:'レア', cost:105, filter:'hue-rotate(150deg)'},
-  {id:'selkirk',     name:'セルカークレックス',        emoji:'🐱', rarity:'rare', rarityLabel:'レア', cost:115, filter:'contrast(1.3) hue-rotate(60deg)'},
-  {id:'havana',      name:'ハバナブラウン',           emoji:'🐈', rarity:'rare', rarityLabel:'レア', cost:125, filter:'sepia(.6) hue-rotate(-20deg)'},
-  {id:'bombay',      name:'ボンベイ',                 emoji:'🐈‍⬛', rarity:'rare', rarityLabel:'レア', cost:135, filter:'brightness(.6)'},
-  {id:'balinese',    name:'バリニーズ',               emoji:'😻', rarity:'rare', rarityLabel:'レア', cost:145, filter:'hue-rotate(250deg)'},
+  {id:'ocicat',      name:'オシキャット',      rarity:'rare', rarityLabel:'レア', cost:95,
+    look:{coat:'#d9b276', mark:'#7a4a20', pattern:'spots', eye:'#8fd858'}},
+  {id:'devonrex',    name:'デボンレックス',    rarity:'rare', rarityLabel:'レア', cost:105,
+    look:{coat:'#a89478', pattern:'solid', eye:'#e0a83c', ears:'curl'}},
+  {id:'selkirk',     name:'セルカークレックス', rarity:'rare', rarityLabel:'レア', cost:115,
+    look:{coat:'#c9a878', pattern:'solid', eye:'#7fd858'}},
+  {id:'havana',      name:'ハバナブラウン',    rarity:'rare', rarityLabel:'レア', cost:125,
+    look:{coat:'#5a3620', pattern:'solid', eye:'#7fd858'}},
+  {id:'bombay',      name:'ボンベイ',          rarity:'rare', rarityLabel:'レア', cost:135,
+    look:{coat:'#211d1a', pattern:'solid', eye:'#d8a23c'}},
+  {id:'balinese',    name:'バリニーズ',        rarity:'rare', rarityLabel:'レア', cost:145,
+    look:{coat:'#f0e6d4', mark:'#4a3226', pattern:'colorpoint', eye:'#6fb8e0'}},
   // ===== スーパーレア (もとからいる子たち) =====
-  {id:'mainecoon',   name:'メインクーン',             emoji:'🦁', rarity:'super', rarityLabel:'スーパーレア', cost:220},
-  {id:'bengal',      name:'ベンガル',                 emoji:'🐆', rarity:'super', rarityLabel:'スーパーレア', cost:230},
-  {id:'norwegian',   name:'ノルウェージャンフォレストキャット', emoji:'🦊', rarity:'super', rarityLabel:'スーパーレア', cost:240},
-  {id:'siberian',    name:'サイベリアン',             emoji:'🐅', rarity:'super', rarityLabel:'スーパーレア', cost:250},
+  {id:'mainecoon',   name:'メインクーン',      rarity:'super', rarityLabel:'スーパーレア', cost:220,
+    look:{coat:'#9a6a3e', mark:'#5a3a1e', pattern:'tabby', eye:'#8fd858'}},
+  {id:'bengal',      name:'ベンガル',          rarity:'super', rarityLabel:'スーパーレア', cost:230,
+    look:{coat:'#e0a24c', mark:'#5a3a1e', pattern:'spots', eye:'#8fd858'}},
+  {id:'norwegian',   name:'ノルウェージャンフォレストキャット', rarity:'super', rarityLabel:'スーパーレア', cost:240,
+    look:{coat:'#c9c2b0', mark:'#8a7a5a', pattern:'tabby', eye:'#e0a83c'}},
+  {id:'siberian',    name:'サイベリアン',      rarity:'super', rarityLabel:'スーパーレア', cost:250,
+    look:{coat:'#b98a5a', mark:'#6a4a28', pattern:'tabby', eye:'#8fd858'}},
   // ===== スーパーレア 新入り =====
-  {id:'pixiebob',    name:'ピクシーボブ',             emoji:'🐆', rarity:'super', rarityLabel:'スーパーレア', cost:190, filter:'hue-rotate(100deg) contrast(1.2)'},
-  {id:'americancurl', name:'アメリカンカール',        emoji:'😺', rarity:'super', rarityLabel:'スーパーレア', cost:205, filter:'hue-rotate(280deg)'},
-  {id:'egyptianmau', name:'エジプシャンマウ',          emoji:'🐆', rarity:'super', rarityLabel:'スーパーレア', cost:220, filter:'hue-rotate(200deg) saturate(1.3)'},
-  {id:'khaomanee',   name:'カオマニー',               emoji:'😸', rarity:'super', rarityLabel:'スーパーレア', cost:235, filter:'brightness(1.4) saturate(.5)'},
-  {id:'lykoi',       name:'ライコイ',                 emoji:'🐺', rarity:'super', rarityLabel:'スーパーレア', cost:250, filter:'grayscale(.5)'},
-  {id:'chausie',     name:'チャウジー',               emoji:'🐅', rarity:'super', rarityLabel:'スーパーレア', cost:265, filter:'hue-rotate(160deg)'},
+  {id:'pixiebob',    name:'ピクシーボブ',      rarity:'super', rarityLabel:'スーパーレア', cost:190,
+    look:{coat:'#a8794a', mark:'#5a3a1e', pattern:'spots', eye:'#d8a23c'}},
+  {id:'americancurl', name:'アメリカンカール', rarity:'super', rarityLabel:'スーパーレア', cost:205,
+    look:{coat:'#f0dcae', pattern:'solid', eye:'#7fd858', ears:'curl'}},
+  {id:'egyptianmau', name:'エジプシャンマウ',  rarity:'super', rarityLabel:'スーパーレア', cost:220,
+    look:{coat:'#c4c0ae', mark:'#6a6250', pattern:'spots', eye:'#8fd858'}},
+  {id:'khaomanee',   name:'カオマニー',        rarity:'super', rarityLabel:'スーパーレア', cost:235,
+    look:{coat:'#fefefa', pattern:'solid', eye:'#7fb8d8'}},
+  {id:'lykoi',       name:'ライコイ',          rarity:'super', rarityLabel:'スーパーレア', cost:250,
+    look:{coat:'#8a8578', mark:'#4a453c', pattern:'spots', eye:'#d8a23c'}},
+  {id:'chausie',     name:'チャウジー',        rarity:'super', rarityLabel:'スーパーレア', cost:265,
+    look:{coat:'#a8763f', mark:'#5a3a1e', pattern:'tabby', eye:'#8fd858'}},
   // ===== ウルトラレア (もとからいる子たち) =====
-  {id:'singapura',   name:'シンガプーラ',             emoji:'🦄', rarity:'ultra', rarityLabel:'ウルトラレア', cost:480},
-  {id:'sphynx',      name:'スフィンクス',             emoji:'👽', rarity:'ultra', rarityLabel:'ウルトラレア', cost:520},
-  {id:'savannah',    name:'サバンナ',                 emoji:'🐆', rarity:'ultra', rarityLabel:'ウルトラレア', cost:560},
-  {id:'toyger',      name:'トイガー',                 emoji:'🐯', rarity:'ultra', rarityLabel:'ウルトラレア', cost:600},
+  {id:'singapura',   name:'シンガプーラ',      rarity:'ultra', rarityLabel:'ウルトラレア', cost:480,
+    look:{coat:'#d9bb95', mark:'#8a6a48', pattern:'tabby', eye:'#8a6a48'}},
+  {id:'sphynx',      name:'スフィンクス',      rarity:'ultra', rarityLabel:'ウルトラレア', cost:520,
+    look:{coat:'#e0b89a', pattern:'solid', eye:'#8fd858'}},
+  {id:'savannah',    name:'サバンナ',          rarity:'ultra', rarityLabel:'ウルトラレア', cost:560,
+    look:{coat:'#d9a95a', mark:'#5a3a1e', pattern:'spots', eye:'#7fd858'}},
+  {id:'toyger',      name:'トイガー',          rarity:'ultra', rarityLabel:'ウルトラレア', cost:600,
+    look:{coat:'#e0913c', mark:'#2b2118', pattern:'tabby', eye:'#8fd858'}},
   // ===== ウルトラレア 新入り =====
-  {id:'caracal',     name:'カラカルキャット',         emoji:'🐆', rarity:'ultra', rarityLabel:'ウルトラレア', cost:420, filter:'hue-rotate(320deg) saturate(1.5)'},
-  {id:'serengeti',   name:'セレンゲティ',             emoji:'🐯', rarity:'ultra', rarityLabel:'ウルトラレア', cost:460, filter:'hue-rotate(80deg)'},
-  {id:'highlandlynx', name:'ハイランドリンクス',       emoji:'🦁', rarity:'ultra', rarityLabel:'ウルトラレア', cost:500, filter:'hue-rotate(200deg)'},
-  {id:'cheetoh',     name:'チートー',                 emoji:'🐆', rarity:'ultra', rarityLabel:'ウルトラレア', cost:540, filter:'contrast(1.4)'},
+  {id:'caracal',     name:'カラカルキャット',  rarity:'ultra', rarityLabel:'ウルトラレア', cost:420,
+    look:{coat:'#c9834a', pattern:'solid', eye:'#d8a23c', ears:'curl'}},
+  {id:'serengeti',   name:'セレンゲティ',      rarity:'ultra', rarityLabel:'ウルトラレア', cost:460,
+    look:{coat:'#d9a24a', mark:'#5a3a1e', pattern:'spots', eye:'#e0a83c'}},
+  {id:'highlandlynx', name:'ハイランドリンクス', rarity:'ultra', rarityLabel:'ウルトラレア', cost:500,
+    look:{coat:'#b99a6a', mark:'#5a3a1e', pattern:'spots', eye:'#8fd858', ears:'fold'}},
+  {id:'cheetoh',     name:'チートー',          rarity:'ultra', rarityLabel:'ウルトラレア', cost:540,
+    look:{coat:'#e0b25a', mark:'#2b2118', pattern:'spots', eye:'#8fd858'}},
   // ===== でんせつ (最高レア。あつめきったご褒美！) =====
-  {id:'fairycat',    name:'ようせいねこ',             emoji:'🧚', rarity:'legendary', rarityLabel:'でんせつ', cost:900},
-  {id:'dragoncat',   name:'ドラゴンねこ',             emoji:'🐉', rarity:'legendary', rarityLabel:'でんせつ', cost:1050},
-  {id:'starcat',     name:'ほしぞらねこ',             emoji:'🌟', rarity:'legendary', rarityLabel:'でんせつ', cost:1200},
-  {id:'goldencat',   name:'おうごんねこ',             emoji:'👑', rarity:'legendary', rarityLabel:'でんせつ', cost:1500},
+  {id:'fairycat',    name:'ようせいねこ',      rarity:'legendary', rarityLabel:'でんせつ', cost:900,
+    look:{coat:'#ffd3ea', pattern:'solid', eye:'#ff8fc4', accessory:'wings'}},
+  {id:'dragoncat',   name:'ドラゴンねこ',      rarity:'legendary', rarityLabel:'でんせつ', cost:1050,
+    look:{coat:'#3f7a52', pattern:'solid', eye:'#ffd75e', accessory:'sparkle', ears:'curl'}},
+  {id:'starcat',     name:'ほしぞらねこ',      rarity:'legendary', rarityLabel:'でんせつ', cost:1200,
+    look:{coat:'#3a3a6a', pattern:'solid', eye:'#ffe08a', accessory:'halo'}},
+  {id:'goldencat',   name:'おうごんねこ',      rarity:'legendary', rarityLabel:'でんせつ', cost:1500,
+    look:{coat:'#ffd75e', pattern:'solid', eye:'#8a5a20', accessory:'crown'}},
 ];
 const AFFECTION_MILESTONES = [5, 15, 30];
 
@@ -1244,8 +1393,8 @@ const ACHIEVEMENTS = [
   {id:'quiz_500', title:'クイズ500問達成',  desc:'あわせて500問こたえる', reward:400, condition: s => s.totalAnswered >= 500},
   {id:'affection_master', title:'なかよしマスター', desc:'5匹のねことなかよし度MAXになる', reward:250,
     condition: s => Object.values(s.ownedSpecies).filter(o=>o.affection >= AFFECTION_MILESTONES[AFFECTION_MILESTONES.length-1]).length >= 5},
-  {id:'fishing_master', title:'つり名人', desc:'おさかなを20回つる', reward:150,
-    condition: s => (s.fishCount||0) >= 20},
+  {id:'invader_master', title:'インベーダーたいじ王', desc:'ねこインベーダーであわせて100ぴきたいじする', reward:200,
+    condition: s => (s.invaderKills||0) >= 100},
 ];
 
 function checkAchievements(){
@@ -1285,26 +1434,71 @@ function renderAchievements(){
   });
 }
 
-/* ---- meow sound (synthesized, no external audio file needed) ---- */
+/* ---- meow sound (synthesized, no external audio file needed) -----------
+   Built from a sawtooth "voice" run through a sweeping bandpass filter
+   (gives it vowel-like "myaow" colour instead of a flat beep), a touch of
+   vibrato for a less robotic tone, and a short breathy noise burst at the
+   very end. `pitch` (0.7-1.3ish) lets different cats sound a little
+   different - bigger/rarer breeds get a deeper voice. */
 let audioCtx = null;
-function playMeow(){
+function playMeow(pitch){
+  pitch = pitch || 1;
   try{
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
     const t0 = audioCtx.currentTime;
+    const base = 460 * pitch;
+
     const osc = audioCtx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(base * 0.7, t0);
+    osc.frequency.linearRampToValueAtTime(base * 1.3, t0 + 0.10);
+    osc.frequency.linearRampToValueAtTime(base * 0.9, t0 + 0.22);
+    osc.frequency.linearRampToValueAtTime(base * 0.5, t0 + 0.40);
+
+    const vibrato = audioCtx.createOscillator();
+    vibrato.frequency.value = 13;
+    const vibratoGain = audioCtx.createGain();
+    vibratoGain.gain.value = base * 0.018;
+    vibrato.connect(vibratoGain).connect(osc.frequency);
+
+    const formant = audioCtx.createBiquadFilter();
+    formant.type = 'bandpass';
+    formant.Q.value = 5.5;
+    formant.frequency.setValueAtTime(base * 2.1, t0);
+    formant.frequency.linearRampToValueAtTime(base * 3.2, t0 + 0.11);
+    formant.frequency.linearRampToValueAtTime(base * 1.5, t0 + 0.40);
+
     const gain = audioCtx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(500, t0);
-    osc.frequency.linearRampToValueAtTime(760, t0 + 0.12);
-    osc.frequency.linearRampToValueAtTime(340, t0 + 0.32);
     gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.linearRampToValueAtTime(0.18, t0 + 0.05);
-    gain.gain.linearRampToValueAtTime(0.0001, t0 + 0.38);
-    osc.connect(gain).connect(audioCtx.destination);
-    osc.start(t0);
-    osc.stop(t0 + 0.4);
+    gain.gain.linearRampToValueAtTime(0.17, t0 + 0.05);
+    gain.gain.linearRampToValueAtTime(0.12, t0 + 0.2);
+    gain.gain.linearRampToValueAtTime(0.0001, t0 + 0.42);
+
+    osc.connect(formant).connect(gain).connect(audioCtx.destination);
+    osc.start(t0); osc.stop(t0 + 0.44);
+    vibrato.start(t0); vibrato.stop(t0 + 0.44);
+
+    // short breathy "ah" tail using filtered noise, layered under the end of the meow
+    const bufferSize = Math.floor(audioCtx.sampleRate * 0.12);
+    const noiseBuf = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    for(let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = noiseBuf;
+    const noiseFilter = audioCtx.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.value = base * 1.6;
+    noiseFilter.Q.value = 1.2;
+    const noiseGain = audioCtx.createGain();
+    noiseGain.gain.setValueAtTime(0.06, t0 + 0.24);
+    noiseGain.gain.linearRampToValueAtTime(0.0001, t0 + 0.4);
+    noise.connect(noiseFilter).connect(noiseGain).connect(audioCtx.destination);
+    noise.start(t0 + 0.24);
   }catch(e){ /* audio not available, ignore */ }
 }
+
+const RARITY_PITCH = {common:1.14, uncommon:1.06, rare:1.0, super:0.93, ultra:0.86, legendary:0.8};
+function meowPitchFor(sp){ return (sp && RARITY_PITCH[sp.rarity]) || 1; }
 
 /* ---- furniture shop (decoration only, purely visual) ---- */
 function renderShop(){
@@ -1367,7 +1561,7 @@ function welcomeSpecies(id){
   renderShop();
   renderCatalog();
   renderGarden();
-  playMeow();
+  playMeow(meowPitchFor(sp));
   showToast(`${sp.name} が お庭に来たよ！「ニャー！」`);
   goTo('garden');
   setTimeout(() => spawnMeowEffectFor(id), 200);
@@ -1388,7 +1582,7 @@ function renderCatalog(){
       div.innerHTML += '<span class="max-badge">⭐</span>';
     }
     div.innerHTML += `
-      <div class="emoji" style="${owned && sp.filter ? `filter:${sp.filter};` : ''}">${owned ? sp.emoji : '❓'}</div>
+      <div class="cat-icon">${owned ? catSVG(sp.look, 48) : '❓'}</div>
       <div class="cname">${owned ? sp.name : '？？？'}</div>
       <span class="rarity-tag ${tagClass}">${sp.rarityLabel}</span>
       ${owned
@@ -1452,7 +1646,7 @@ function renderGarden(){
     d.style.animationDelay = (Math.random() * 6).toFixed(1) + 's';
     d.innerHTML = `
       <span class="catname">${sp.name}</span>
-      <span style="${sp.filter ? `filter:${sp.filter};` : ''}">${sp.emoji}</span>
+      <span class="cat-icon-garden">${catSVG(sp.look, 40)}</span>
       <span class="heart-badge">💗${owned.affection}</span>
       ${isMax ? '<span class="max-star">⭐</span>' : ''}
     `;
@@ -1501,7 +1695,7 @@ function petCat(speciesId, ev){
   const sp = CAT_SPECIES.find(s => s.id === speciesId);
   if(!owned || !sp) return;
   const el = ev.currentTarget;
-  playMeow();
+  playMeow(meowPitchFor(sp));
   showSpeechBubble(el, pick2(PET_MESSAGES));
   spawnHearts(el);
 
@@ -1532,99 +1726,220 @@ function petCat(speciesId, ev){
 function pick2(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
 
 /* ---------------------------------------------------------------------
-   6b. FISHING MINIGAME (🎣 つり) - earn a small amount of bonus coins
-   by tapping right when the fish bites. Cooldown-limited so it can't
-   be spammed for infinite coins.
+   6b. ねこインベーダー - a small Space-Invaders-style minigame.
+   Player (🐱) moves left/right along the bottom and shoots yarn balls
+   upward at a descending formation of mice (🐭). Clearing waves earns
+   ねこコイン. Skill-based, so no artificial cooldown is needed - a run
+   naturally takes real time and effort.
 --------------------------------------------------------------------- */
-const FISH_COOLDOWN_MS = 45000; // 45 seconds between attempts
-let fishingState = 'idle';      // idle | waiting | ready
-let fishingTimer = null;
-let fishingReadyAt = 0;
+const IV_W = 300, IV_H = 340;
+const invaderCanvas = document.getElementById('invaderCanvas');
+const ictx = invaderCanvas ? invaderCanvas.getContext('2d') : null;
+let iv = null; // active game state, or null when idle
 
-function fishingCooldownRemaining(){
-  return FISH_COOLDOWN_MS - (Date.now() - (state.lastFishAt || 0));
-}
-
-function updateFishingButton(){
-  const btn = document.getElementById('fishingBtn');
-  const status = document.getElementById('fishingStatus');
-  if(!btn || !status || fishingState !== 'idle') return;
-  const remain = fishingCooldownRemaining();
-  if(remain > 0){
-    btn.disabled = true;
-    btn.textContent = `つぎまで ${Math.ceil(remain/1000)}びょう`;
-    status.textContent = '🌊 つりざおがやすんでいるよ…';
-    status.classList.remove('pop');
-    setTimeout(updateFishingButton, 1000);
-  } else {
-    btn.disabled = false;
-    btn.textContent = 'つりをはじめる';
-    status.textContent = '🌊 静かな海だよ…';
+function ivMakeWave(wave){
+  const cols = 6, rows = wave === 1 ? 3 : 4;
+  const list = [];
+  for(let r = 0; r < rows; r++){
+    for(let c = 0; c < cols; c++){
+      list.push({x: 30 + c * 42, y: 26 + r * 30, alive: true});
+    }
   }
+  return list;
 }
 
-function startFishing(){
-  if(fishingState !== 'idle') return;
-  if(fishingCooldownRemaining() > 0){
-    showToast('つりざおがまだつかれてるよ🎣');
-    return;
+function ivStart(){
+  if(!ictx) return;
+  iv = {
+    wave: 1,
+    enemies: ivMakeWave(1),
+    dir: 1,
+    speed: 0.6,
+    lives: 3,
+    score: 0,
+    coinsEarned: 0,
+    killedThisRun: 0,
+    playerX: IV_W / 2,
+    bullets: [],
+    lastShot: 0,
+    running: true
+  };
+  document.getElementById('invaderScore').textContent = '0';
+  document.getElementById('invaderLives').textContent = '3';
+  document.getElementById('invaderStartBtn').textContent = 'あそびちゅう…';
+  document.getElementById('invaderStartBtn').disabled = true;
+  requestAnimationFrame(ivLoop);
+}
+
+function ivShoot(){
+  if(!iv || !iv.running) return;
+  const now = performance.now();
+  if(now - iv.lastShot < 260) return; // small cooldown, keeps it a "game" rather than a hosepipe
+  iv.lastShot = now;
+  iv.bullets.push({x: iv.playerX, y: IV_H - 30});
+}
+
+function ivMove(dir){
+  if(!iv || !iv.running) return;
+  iv.playerX = Math.max(16, Math.min(IV_W - 16, iv.playerX + dir * 12));
+}
+
+function ivNextWave(){
+  iv.wave = 2;
+  iv.enemies = ivMakeWave(2);
+  iv.dir = 1;
+  iv.speed = 0.85;
+  iv.bullets = [];
+  iv.coinsEarned += 15;
+  showToast('🎉 ウェーブ1クリア！ボーナス🐾+15');
+}
+
+function ivEnd(win){
+  if(!iv || !iv.running) return;
+  iv.running = false;
+  if(win){
+    iv.coinsEarned += 25;
+    showToast('🏆 ぜんウェーブクリア！ボーナス🐾+25');
   }
-  fishingState = 'waiting';
-  const btn = document.getElementById('fishingBtn');
-  const status = document.getElementById('fishingStatus');
-  btn.disabled = false;
-  btn.textContent = 'まだまだ…';
-  status.textContent = '🎣 いとをたらした…まってて';
-  status.classList.remove('pop');
-  const delay = 1200 + Math.random() * 2600;
-  fishingTimer = setTimeout(() => {
-    if(fishingState !== 'waiting') return;
-    fishingState = 'ready';
-    fishingReadyAt = Date.now();
-    status.textContent = '🐟 今だ！タップ！';
-    status.classList.add('pop');
-    btn.textContent = 'エイヤ！';
-    fishingTimer = setTimeout(() => {
-      if(fishingState === 'ready') fishMiss(false);
-    }, 900);
-  }, delay);
-}
-
-function handleFishingClick(){
-  if(fishingState === 'idle'){ startFishing(); return; }
-  if(fishingState === 'waiting'){ clearTimeout(fishingTimer); fishMiss(true); return; }
-  if(fishingState === 'ready'){
-    clearTimeout(fishingTimer);
-    fishCatch(Date.now() - fishingReadyAt);
-  }
-}
-
-function fishCatch(reactionMs){
-  const bonus = reactionMs < 300 ? 15 : reactionMs < 550 ? 10 : 6;
-  state.coins += bonus;
-  state.fishCount = (state.fishCount || 0) + 1;
-  state.lastFishAt = Date.now();
+  state.coins += iv.coinsEarned;
+  state.invaderKills = (state.invaderKills || 0) + iv.killedThisRun;
+  if(iv.score > (state.invaderHighScore || 0)) state.invaderHighScore = iv.score;
   document.getElementById('coinCount').textContent = state.coins;
-  document.getElementById('fishingStatus').textContent = `🎉 つれた！ねこコイン+${bonus}`;
-  document.getElementById('fishingStatus').classList.remove('pop');
-  fishingState = 'idle';
-  showToast(`おさかなをつったよ！🐾+${bonus}`);
+  document.getElementById('invaderStartBtn').textContent = 'もういちどあそぶ';
+  document.getElementById('invaderStartBtn').disabled = false;
+  showToast(win ? `やったね！ねこコイン+${iv.coinsEarned}獲得！` : `ゲームオーバー…ねこコイン+${iv.coinsEarned}獲得`);
   checkAchievements();
   persistLocal();
-  updateFishingButton();
+  ivDraw(); // draw final frame (e.g. game-over state) once more
 }
 
-function fishMiss(early){
-  state.lastFishAt = Date.now();
-  const status = document.getElementById('fishingStatus');
-  status.textContent = early ? '😿 まだだよ…にげられた' : '😿 にげられちゃった…';
-  status.classList.remove('pop');
-  fishingState = 'idle';
-  persistLocal();
-  updateFishingButton();
+function ivLoop(){
+  if(!iv || !iv.running) return;
+  ivUpdate();
+  ivDraw();
+  requestAnimationFrame(ivLoop);
 }
 
-document.getElementById('fishingBtn').addEventListener('click', handleFishingClick);
+function ivUpdate(){
+  // move formation as a block; bounce off walls and step down
+  let minX = Infinity, maxX = -Infinity, anyAlive = false;
+  iv.enemies.forEach(e => {
+    if(!e.alive) return;
+    anyAlive = true;
+    minX = Math.min(minX, e.x);
+    maxX = Math.max(maxX, e.x);
+  });
+  if(!anyAlive){
+    if(iv.wave === 1) ivNextWave(); else ivEnd(true);
+    return;
+  }
+  let hitWall = (minX + iv.dir * iv.speed < 14) || (maxX + iv.dir * iv.speed > IV_W - 14);
+  iv.enemies.forEach(e => {
+    if(!e.alive) return;
+    if(hitWall) e.y += 12; else e.x += iv.dir * iv.speed;
+  });
+  if(hitWall){
+    iv.dir *= -1;
+    iv.speed = Math.min(iv.speed + 0.12, 2.4);
+  }
+  // invasion check - an enemy got too close to the player
+  if(iv.enemies.some(e => e.alive && e.y > IV_H - 46)){
+    ivEnd(false);
+    return;
+  }
+
+  // bullets
+  iv.bullets.forEach(b => { b.y -= 6; });
+  iv.bullets = iv.bullets.filter(b => b.y > -10);
+
+  // collisions
+  iv.bullets.forEach(b => {
+    if(b.hit) return;
+    iv.enemies.forEach(e => {
+      if(!e.alive || b.hit) return;
+      if(Math.abs(b.x - e.x) < 13 && Math.abs(b.y - e.y) < 13){
+        e.alive = false;
+        b.hit = true;
+        iv.score += 10;
+        iv.coinsEarned += 2;
+        iv.killedThisRun++;
+        document.getElementById('invaderScore').textContent = iv.score;
+      }
+    });
+  });
+  iv.bullets = iv.bullets.filter(b => !b.hit);
+}
+
+function ivDraw(){
+  if(!ictx) return;
+  ictx.clearRect(0, 0, IV_W, IV_H);
+  const grad = ictx.createLinearGradient(0, 0, 0, IV_H);
+  grad.addColorStop(0, '#dff3ff');
+  grad.addColorStop(1, '#eafcff');
+  ictx.fillStyle = grad;
+  ictx.fillRect(0, 0, IV_W, IV_H);
+
+  ictx.font = '20px sans-serif';
+  ictx.textAlign = 'center';
+  ictx.textBaseline = 'middle';
+  if(iv){
+    iv.enemies.forEach(e => { if(e.alive) ictx.fillText('🐭', e.x, e.y); });
+    ictx.fillStyle = '#ffe08a';
+    iv.bullets.forEach(b => {
+      ictx.beginPath();
+      ictx.arc(b.x, b.y, 4, 0, Math.PI * 2);
+      ictx.fill();
+    });
+    ictx.font = '26px sans-serif';
+    ictx.fillText('🐱', iv.playerX, IV_H - 22);
+    if(!iv.running){
+      ictx.fillStyle = 'rgba(122,92,80,0.55)';
+      ictx.fillRect(0, IV_H/2 - 24, IV_W, 48);
+      ictx.fillStyle = '#fff';
+      ictx.font = 'bold 18px sans-serif';
+      ictx.fillText(iv.score > 0 && iv.enemies.every(e => !e.alive) ? 'クリア！🎉' : 'ゲームオーバー', IV_W/2, IV_H/2);
+    }
+  } else {
+    ictx.fillStyle = '#7a5c50';
+    ictx.font = '15px sans-serif';
+    ictx.fillText('「ゲームスタート」でスタート！', IV_W/2, IV_H/2);
+  }
+}
+ivDraw();
+
+document.getElementById('invaderStartBtn').addEventListener('click', ivStart);
+document.getElementById('invaderShootBtn').addEventListener('click', ivShoot);
+
+function ivHoldMove(dir, btnEl){
+  let iid = null;
+  const start = (e) => { e.preventDefault(); ivMove(dir); iid = setInterval(() => ivMove(dir), 70); };
+  const stop = () => { clearInterval(iid); };
+  btnEl.addEventListener('mousedown', start);
+  btnEl.addEventListener('touchstart', start, {passive:false});
+  ['mouseup','mouseleave','touchend','touchcancel'].forEach(ev => btnEl.addEventListener(ev, stop));
+}
+ivHoldMove(-1, document.getElementById('invaderLeftBtn'));
+ivHoldMove(1, document.getElementById('invaderRightBtn'));
+
+// tap/drag directly on the canvas: move toward the touch point and fire
+if(invaderCanvas){
+  const ivPointerToX = (clientX) => {
+    const rect = invaderCanvas.getBoundingClientRect();
+    return (clientX - rect.left) * (IV_W / rect.width);
+  };
+  const ivPointerDown = (clientX) => {
+    if(!iv || !iv.running) return;
+    iv.playerX = Math.max(16, Math.min(IV_W - 16, ivPointerToX(clientX)));
+    ivShoot();
+  };
+  invaderCanvas.addEventListener('mousedown', (e) => ivPointerDown(e.clientX));
+  invaderCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); ivPointerDown(e.touches[0].clientX); }, {passive:false});
+  invaderCanvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if(!iv || !iv.running) return;
+    iv.playerX = Math.max(16, Math.min(IV_W - 16, ivPointerToX(e.touches[0].clientX)));
+  }, {passive:false});
+}
 
 document.getElementById('toggleNightBtn').addEventListener('click', () => {
   state.nightMode = !state.nightMode;
@@ -1714,7 +2029,7 @@ function goTo(page){
   const idx = map[page === 'result' ? 'quiz' : page];
   if(idx !== undefined) document.querySelectorAll('.tab-btn')[idx].classList.add('active');
   if(page === 'home') updateHomeStats();
-  if(page === 'garden'){ renderShop(); renderCatalog(); renderGarden(); renderAchievements(); updateFishingButton(); }
+  if(page === 'garden'){ renderShop(); renderCatalog(); renderGarden(); renderAchievements(); }
 }
 
 let toastTimer = null;
@@ -1752,7 +2067,6 @@ renderShop();
 renderCatalog();
 renderGarden();
 renderAchievements();
-updateFishingButton();
 if(hadLocalSave) showToast('前回のつづきから読みこみました🐾');
 
 // safety-net autosave: also save periodically and right before the tab/app closes

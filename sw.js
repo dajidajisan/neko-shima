@@ -2,7 +2,7 @@
    Caches the core app files so it can still open (and be played) without
    an internet connection after it has been opened at least once. */
 
-const CACHE_NAME = 'neko-shima-v3';
+const CACHE_NAME = 'neko-shima-v5';
 const CORE_ASSETS = [
   './',
   './index.html',
