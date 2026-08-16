@@ -1797,6 +1797,7 @@ function ivStart(){
     playerX: IV_W / 2,
     bullets: [],
     lastShot: 0,
+    lastAutoShot: 0,
     running: true
   };
   document.getElementById('invaderScore').textContent = '0';
@@ -1871,16 +1872,34 @@ function ivUpdate(){
   let hitWall = (minX + iv.dir * iv.speed < 14) || (maxX + iv.dir * iv.speed > IV_W - 14);
   iv.enemies.forEach(e => {
     if(!e.alive) return;
-    if(hitWall) e.y += 12; else e.x += iv.dir * iv.speed;
+    if(hitWall) e.y += 16; else e.x += iv.dir * iv.speed;
   });
   if(hitWall){
     iv.dir *= -1;
     iv.speed = Math.min(iv.speed + 0.12, 2.4);
   }
-  // invasion check - an enemy got too close to the player
+
+  // auto-fire: keeps the game feeling active even if the player hasn't
+  // found the manual "うつ" button or the drag-to-shoot gesture yet
+  const now = performance.now();
+  if(now - iv.lastAutoShot > 700){
+    iv.lastAutoShot = now;
+    iv.bullets.push({x: iv.playerX, y: IV_H - 30});
+  }
+
+  // invasion check - if a mouse reaches the player's row, lose a life
+  // and push the whole formation back up, rather than an instant game over
+  // (previously this ended the run on the very first breach even though
+  // the HUD promised 3 lives - now it actually uses them)
   if(iv.enemies.some(e => e.alive && e.y > IV_H - 46)){
-    ivEnd(false);
-    return;
+    iv.lives--;
+    document.getElementById('invaderLives').textContent = Math.max(0, iv.lives);
+    if(iv.lives <= 0){
+      ivEnd(false);
+      return;
+    }
+    iv.enemies.forEach(e => { if(e.alive) e.y -= 70; });
+    showToast(`😿 にげられた！のこりライフ ${iv.lives}`);
   }
 
   // bullets
